@@ -1,60 +1,83 @@
 const { registerBlockType } = wp.blocks;
-const { TextControl, ToggleControl, PanelBody, PanelRow } = wp.components;
+const { ToggleControl, PanelBody, SelectControl, TextControl } = wp.components;
 const { InspectorControls } = wp.blockEditor;
 
-registerBlockType('hsf/search-filter', {
-    title: 'Search and Filter',
-    icon: 'search',
+registerBlockType('happy-search-and-filter/advanced-search', {
+    title: 'Advanced Search Filters',
+    icon: 'filter',
     category: 'widgets',
     attributes: {
-        keyword: { type: 'string' },
-        category: { type: 'string' },
-        location: { type: 'string' },
-        date_range: { type: 'string' },
-        autocomplete: { type: 'boolean', default: false }
+        title: { type: 'string', default: 'Find Businesses' },
+        showKeywordSearch: { type: 'boolean', default: true },
+        showLocationFilter: { type: 'boolean', default: true },
+        showCategoryFilter: { type: 'boolean', default: true },
+        showCompanyTypeFilter: { type: 'boolean', default: true },
+        showRatingFilter: { type: 'boolean', default: false },
+        showPriceRangeFilter: { type: 'boolean', default: false },
+        showVerifiedFilter: { type: 'boolean', default: false },
+        showSorting: { type: 'boolean', default: true },
+        resultsPerPage: { type: 'number', default: 10 },
+        showDateRangeFilter: { type: 'boolean', default: false },
+        showServiceFilter: { type: 'boolean', default: false },
+        showDistanceFilter: { type: 'boolean', default: false },
+        showTagsFilter: { type: 'boolean', default: false },
+        showOpenNowFilter: { type: 'boolean', default: false },
+        enableSavedFilters: { type: 'boolean', default: false },
+        filterStyle: { type: 'string', default: 'standard' }
     },
-    edit: ({ attributes, setAttributes }) => {
-        const { keyword, category, location, date_range, autocomplete } = attributes;
+    edit: ( { attributes, setAttributes } ) => {
+        const toggle = ( field ) => ( value ) => setAttributes( { [ field ]: value } );
 
         return (
             <>
                 <InspectorControls>
-                    <PanelBody title="Search and Filter Settings">
-                        <PanelRow>
+                    <PanelBody title="Toggle Filters" initialOpen={ true }>
+                        { [
+                            'showKeywordSearch',
+                            'showLocationFilter',
+                            'showCategoryFilter',
+                            'showCompanyTypeFilter',
+                            'showRatingFilter',
+                            'showPriceRangeFilter',
+                            'showVerifiedFilter',
+                            'showDateRangeFilter',
+                            'showServiceFilter',
+                            'showDistanceFilter',
+                            'showTagsFilter',
+                            'showOpenNowFilter',
+                            'enableSavedFilters'
+                        ].map( ( field ) => (
                             <ToggleControl
-                                label="Enable Autocomplete"
-                                checked={autocomplete}
-                                onChange={(value) => setAttributes({ autocomplete: value })}
+                                key={ field }
+                                label={ field }
+                                checked={ attributes[ field ] }
+                                onChange={ toggle( field ) }
                             />
-                        </PanelRow>
+                        ) ) }
+                    </PanelBody>
+                    <PanelBody title="Layout & Style" initialOpen={ false }>
+                        <SelectControl
+                            label="Filter Style"
+                            value={ attributes.filterStyle }
+                            options={ [
+                                { label: 'Standard', value: 'standard' },
+                                { label: 'Minimal', value: 'minimal' }
+                            ] }
+                            onChange={ ( value ) => setAttributes( { filterStyle: value } ) }
+                        />
+                        <TextControl
+                            label="Results Per Page"
+                            type="number"
+                            value={ attributes.resultsPerPage }
+                            onChange={ ( value ) => setAttributes( { resultsPerPage: parseInt( value, 10 ) || 10 } ) }
+                        />
                     </PanelBody>
                 </InspectorControls>
-                <div>
-                    <TextControl
-                        label="Keyword"
-                        value={keyword}
-                        onChange={(value) => setAttributes({ keyword: value })}
-                    />
-                    <TextControl
-                        label="Category"
-                        value={category}
-                        onChange={(value) => setAttributes({ category: value })}
-                    />
-                    <TextControl
-                        label="Location"
-                        value={location}
-                        onChange={(value) => setAttributes({ location: value })}
-                    />
-                    <TextControl
-                        label="Date Range"
-                        value={date_range}
-                        onChange={(value) => setAttributes({ date_range: value })}
-                    />
-                </div>
+                <p><strong>Advanced Search Filters Block</strong><br/>Configure the options in the sidebar.</p>
             </>
         );
     },
-    save: ({ attributes }) => {
-        return null; // Rendered with PHP
+    save() {
+        return null; // Rendered via PHP
     }
 });

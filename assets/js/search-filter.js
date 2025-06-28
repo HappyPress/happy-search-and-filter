@@ -4,14 +4,14 @@ jQuery(document).ready(function ($) {
 
         var data = {
             action: 'hsf_search',
-            nonce: hsf_search_params.nonce,
+            nonce: hsfSearch.nonce,
             keyword: $('#hsf_keyword').val(),
             category: $('#hsf_category').val(),
             location: $('#hsf_location').val(),
             date_range: $('#hsf_date_range').val()
         };
 
-        $.post(hsf_search_params.ajax_url, data, function (response) {
+        $.post(hsfSearch.ajaxUrl, data, function (response) {
             if (response.success) {
                 $('#hsf-search-results').html('');
                 $.each(response.data, function (index, item) {

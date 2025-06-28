@@ -1,0 +1,14 @@
+/* Editor styles for Happy Search & Filter block */
+
+.hbl-advanced-filter .hbl-filter-field {
+    margin-bottom: 1rem;
+}
+
+.hbl-advanced-filter input[type="text"],
+.hbl-advanced-filter select {
+    width: 100%;
+}
+
+.hbl-advanced-filter button {
+    margin-top: 10px;
+} 

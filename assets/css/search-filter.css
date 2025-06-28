@@ -1,0 +1,26 @@
+/* Front-end styles for Happy Search & Filter */
+
+.hbl-advanced-filter {
+    border: 1px solid #ddd;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    background: #fafafa;
+}
+
+.hbl-filter-field {
+    margin-bottom: 1rem;
+}
+
+.hbl-advanced-filter-form input[type="text"] {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ccc;
+}
+
+.hbl-advanced-filter-form button {
+    background: #007cba;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+}
