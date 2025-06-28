@@ -29,19 +29,54 @@ $defaults = array(
 $attributes = array_merge( $defaults, $attributes );
 
 // Get filter options (replace with HSF equivalents or fallback)
-$categories = get_terms(array('taxonomy' => 'business_category', 'hide_empty' => true));
-if (is_wp_error($categories)) $categories = array();
-$company_types = function_exists('hbl_get_meta_values') ? hbl_get_meta_values('company_type', 'business_listing') : array();
-$locations = function_exists('hbl_get_meta_values') ? hbl_get_meta_values('location', 'business_listing') : array();
+$categories = array();
+$company_types = array();
+$locations = array();
+$services = array();
+$tags = array();
+
+try {
+    // Get categories
+    if ($attributes['showCategoryFilter']) {
+        $categories = get_terms(array('taxonomy' => 'business_category', 'hide_empty' => true));
+        if (is_wp_error($categories)) $categories = array();
+    }
+    
+    // Get company types
+    if ($attributes['showCompanyTypeFilter'] && function_exists('hbl_get_meta_values')) {
+        $company_types = hbl_get_meta_values('company_type', 'business_listing');
+        if (!is_array($company_types)) $company_types = array();
+    }
+    
+    // Get locations
+    if ($attributes['showLocationFilter'] && function_exists('hbl_get_meta_values')) {
+        $locations = hbl_get_meta_values('location', 'business_listing');
+        if (!is_array($locations)) $locations = array();
+    }
+    
+    // Get services
+    if ($attributes['showServiceFilter'] && function_exists('hbl_get_meta_values')) {
+        $services = hbl_get_meta_values('services', 'business_listing', true);
+        if (!is_array($services)) $services = array();
+    }
+    
+    // Get tags
+    if ($attributes['showTagsFilter']) {
+        $tags = get_terms(array('taxonomy' => 'business_tag', 'hide_empty' => true));
+        if (is_wp_error($tags)) $tags = array();
+    }
+} catch (Exception $e) {
+    // Log error but continue with empty arrays
+    error_log('HSF Template Error: ' . $e->getMessage());
+}
+
 $price_ranges = array(
     'low' => __('Low', 'happy-search-and-filter'),
     'medium' => __('Medium', 'happy-search-and-filter'),
     'high' => __('High', 'happy-search-and-filter'),
     'premium' => __('Premium', 'happy-search-and-filter')
 );
-$services = $attributes['showServiceFilter'] && function_exists('hbl_get_meta_values') ? hbl_get_meta_values('services', 'business_listing', true) : array();
-$tags = get_terms(array('taxonomy' => 'business_tag', 'hide_empty' => true));
-if (is_wp_error($tags)) $tags = array();
+
 $distance_options = array_filter(array_map('trim', explode(',', $attributes['maxDistanceOptions'])), 'is_numeric');
 
 // Current values (no $_GET, just empty for now)
