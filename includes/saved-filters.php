@@ -66,4 +66,4 @@ function hsf_ajax_delete_filter() {
 
     wp_send_json_success();
 }
-add_action( 'wp_ajax_hsf_delete_filter', 'hsf_ajax_delete_filter' ); 
+add_action( 'wp_ajax_hsf_delete_filter', 'hsf_ajax_delete_filter' );

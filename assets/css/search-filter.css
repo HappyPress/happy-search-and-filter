@@ -1,26 +1,133 @@
-/* Front-end styles for Happy Search & Filter */
+/* Front-end styles for Happy Search & Filter - Modern Design */
 
 .hbl-advanced-filter {
-    border: 1px solid #ddd;
-    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    padding: 1.5rem;
     margin-bottom: 1.5rem;
-    background: #fafafa;
+    background: #ffffff;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
 
 .hbl-filter-field {
     margin-bottom: 1rem;
 }
 
-.hbl-advanced-filter-form input[type="text"] {
+.hbl-advanced-filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: end;
+}
+
+.hbl-filter-field {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 150px;
+}
+
+.hbl-filter-field label {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #1f2937;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.hbl-advanced-filter-form input[type="text"],
+.hbl-advanced-filter-form select {
     width: 100%;
-    padding: 6px;
-    border: 1px solid #ccc;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #1f2937;
+    transition: all 0.2s ease-in-out;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.hbl-advanced-filter-form select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+
+.hbl-advanced-filter-form input[type="text"]:focus,
+.hbl-advanced-filter-form select:focus {
+    border-color: #6366f1;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.hbl-filter-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    align-items: center;
 }
 
 .hbl-advanced-filter-form button {
-    background: #007cba;
-    color: #fff;
+    padding: 0.75rem 2rem;
     border: none;
-    padding: 8px 16px;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
     cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    min-height: 44px;
+}
+
+.hbl-submit-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.hbl-submit-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.hbl-reset-button {
+    background-color: #ffffff;
+    color: #1f2937;
+    border: 1px solid #e2e8f0;
+}
+
+.hbl-reset-button:hover {
+    background-color: #f8f9fa;
+    border-color: #6b7280;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .hbl-advanced-filter-form {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .hbl-filter-field {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .hbl-filter-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .hbl-advanced-filter-form button {
+        width: 100%;
+        justify-content: center;
+    }
 }

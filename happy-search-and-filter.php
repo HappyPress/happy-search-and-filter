@@ -93,30 +93,70 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
             require_once HSF_PLUGIN_DIR . 'includes/search-shortcode.php';
             require_once HSF_PLUGIN_DIR . 'includes/ajax-handler.php';
             require_once HSF_PLUGIN_DIR . 'includes/saved-filters.php';
+            
+            // Include advanced search block for page-based directory
+            if (function_exists('register_block_type')) {
+                require_once HSF_PLUGIN_DIR . 'includes/advanced-search-block.php';
+            }
         }
 
         /**
          * Enqueue front-end assets.
          */
         public function enqueue_assets() {
+            // Always enqueue advanced filter assets since they might be used via shortcode
+            $advanced_style_path = HSF_PLUGIN_DIR . 'assets/css/advanced-filter.css';
+            $advanced_script_path = HSF_PLUGIN_DIR . 'assets/js/advanced-filter.js';
+            
+            if (file_exists($advanced_style_path)) {
+                wp_enqueue_style( 'hsf-advanced-filter', HSF_PLUGIN_URL . 'assets/css/advanced-filter.css', array(), filemtime( $advanced_style_path ) );
+            }
+            
+            if (file_exists($advanced_script_path)) {
+                wp_enqueue_script( 'hsf-advanced-filter', HSF_PLUGIN_URL . 'assets/js/advanced-filter.js', array( 'jquery', 'jquery-ui-datepicker' ), filemtime( $advanced_script_path ), true );
+                
+                wp_localize_script( 'hsf-advanced-filter', 'hsfAdvancedFilter', array(
+                    'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                    'nonce'   => wp_create_nonce( 'hsf_advanced_filter_nonce' ),
+                    'i18n'    => array(
+                        'showFilters' => __( 'Show Filters', 'happy-search-and-filter' ),
+                        'hideFilters' => __( 'Hide Filters', 'happy-search-and-filter' ),
+                        'useMyLocation' => __( 'Use my location', 'happy-search-and-filter' ),
+                        'noSavedFilters' => __( 'No saved filters yet.', 'happy-search-and-filter' ),
+                        'saveFilterPrompt' => __( 'Enter a name for this filter:', 'happy-search-and-filter' ),
+                        'deleteFilterConfirm' => __( 'Are you sure you want to delete this saved filter?', 'happy-search-and-filter' ),
+                    ),
+                ) );
+            }
+
+            // Fallback for basic styles if advanced doesn't exist
             $style_path = HSF_PLUGIN_DIR . 'assets/css/search-filter.css';
+            if (file_exists($style_path) && !file_exists($advanced_style_path)) {
+                wp_enqueue_style( 'hsf-style', HSF_PLUGIN_URL . 'assets/css/search-filter.css', array(), filemtime( $style_path ) );
+            }
+
             $script_path = HSF_PLUGIN_DIR . 'assets/js/search-filter.js';
-
-            wp_enqueue_style( 'hsf-style', HSF_PLUGIN_URL . 'assets/css/search-filter.css', array(), filemtime( $style_path ) );
-
-            wp_enqueue_script( 'hsf-script', HSF_PLUGIN_URL . 'assets/js/search-filter.js', array( 'jquery' ), filemtime( $script_path ), true );
+            if (file_exists($script_path) && !file_exists($advanced_script_path)) {
+                wp_enqueue_script( 'hsf-script', HSF_PLUGIN_URL . 'assets/js/search-filter.js', array( 'jquery' ), filemtime( $script_path ), true );
+            }
 
             // Saved filters script
             $saved_script_path = HSF_PLUGIN_DIR . 'assets/js/hsf-saved-filters.js';
-            wp_enqueue_script( 'hsf-saved-filters', HSF_PLUGIN_URL . 'assets/js/hsf-saved-filters.js', array( 'jquery' ), filemtime( $saved_script_path ), true );
+            if (file_exists($saved_script_path)) {
+                wp_enqueue_script( 'hsf-saved-filters', HSF_PLUGIN_URL . 'assets/js/hsf-saved-filters.js', array( 'jquery' ), filemtime( $saved_script_path ), true );
 
-            wp_localize_script( 'hsf-saved-filters', 'hsfSaved', array(
-                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                'nonce'   => wp_create_nonce( 'hsf_saved_filter_nonce' ),
-                'i18n'    => array(
-                    'promptName' => __( 'Enter a name for this filter', 'happy-search-and-filter' ),
-                ),
-            ) );
+                wp_localize_script( 'hsf-saved-filters', 'hsfSaved', array(
+                    'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                    'nonce'   => wp_create_nonce( 'hsf_saved_filter_nonce' ),
+                    'i18n'    => array(
+                        'promptName' => __( 'Enter a name for this filter', 'happy-search-and-filter' ),
+                    ),
+                ) );
+            }
+
+            // Enqueue jQuery UI for datepicker
+            wp_enqueue_script( 'jquery-ui-datepicker' );
+            wp_enqueue_style( 'jquery-ui', 'https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css' );
         }
 
         /**
@@ -127,7 +167,7 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
             wp_register_script(
                 'hsf-block-editor',
                 HSF_PLUGIN_URL . 'assets/js/search-filter-editor.js',
-                array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components' ),
+                array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-i18n' ),
                 filemtime( HSF_PLUGIN_DIR . 'assets/js/search-filter-editor.js' ),
                 true
             );
@@ -176,9 +216,51 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
          * Server-side render callback for the block.
          */
         public function render_search_filter_block( $attributes ) {
-            ob_start();
-            include HSF_PLUGIN_DIR . 'templates/search-filter-template.php';
-            return ob_get_clean();
+            // Add error handling and debugging
+            try {
+                // Ensure attributes is an array
+                if (!is_array($attributes)) {
+                    $attributes = array();
+                }
+                
+                // Set default attributes
+                $defaults = array(
+                    'title' => __( 'Find Businesses', 'happy-search-and-filter' ),
+                    'layout' => 'horizontal',
+                    'showKeywordSearch' => true,
+                    'showLocationFilter' => true,
+                    'showCategoryFilter' => true,
+                    'showCompanyTypeFilter' => true,
+                    'showRatingFilter' => false,
+                    'showPriceRangeFilter' => false,
+                    'showVerifiedFilter' => false,
+                    'showSorting' => true,
+                    'resultsPerPage' => 10,
+                    'showDateRangeFilter' => false,
+                    'showServiceFilter' => false,
+                    'showDistanceFilter' => false,
+                    'showTagsFilter' => false,
+                    'showOpenNowFilter' => false,
+                    'maxDistanceOptions' => '5,10,25,50,100',
+                    'defaultDistanceUnit' => 'km',
+                    'enableAutoSubmit' => true,
+                    'enableSavedFilters' => false,
+                    'filterStyle' => 'standard',
+                    'showFilterToggle' => false,
+                    'className' => ''
+                );
+                
+                $attributes = array_merge($defaults, $attributes);
+                
+                ob_start();
+                include HSF_PLUGIN_DIR . 'templates/search-filter-template.php';
+                return ob_get_clean();
+                
+            } catch (Exception $e) {
+                // Log error and return a simple fallback
+                error_log('HSF Block Render Error: ' . $e->getMessage());
+                return '<div class="hsf-error">Advanced Search Filter - Configuration Error</div>';
+            }
         }
     }
 }

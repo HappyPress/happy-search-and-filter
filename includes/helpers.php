@@ -129,4 +129,54 @@ function hsf_delete_filter( $user_id, $filter_id ) {
     do_action( 'hsf_filter_deleted', $user_id, $filter_id );
 
     return true;
-} 
+}
+
+/**
+ * Get unique meta values for a specific meta key and post type
+ *
+ * @param string $meta_key Meta key to search for
+ * @param string $post_type Post type to filter by
+ * @param bool $is_array Whether the meta value is stored as an array
+ * @return array Array of unique meta values
+ */
+if (!function_exists('hsf_get_meta_values')) {
+    function hsf_get_meta_values($meta_key, $post_type, $is_array = false) {
+        // First try to use the function from happy-business-listing plugin if it exists
+        if (function_exists('hbl_get_meta_values')) {
+            return hbl_get_meta_values($meta_key, $post_type, $is_array);
+        }
+
+        // Fallback to our own implementation
+        global $wpdb;
+
+        $query = $wpdb->prepare(
+            "SELECT DISTINCT pm.meta_value
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+            WHERE pm.meta_key = %s
+            AND p.post_type = %s
+            AND p.post_status = 'publish'
+            AND pm.meta_value != ''",
+            $meta_key,
+            $post_type
+        );
+
+        $results = $wpdb->get_col($query);
+
+        if ($is_array) {
+            // Handle array meta values
+            $values = array();
+            foreach ($results as $result) {
+                $unserialized = maybe_unserialize($result);
+                if (is_array($unserialized)) {
+                    $values = array_merge($values, $unserialized);
+                } else {
+                    $values[] = $result;
+                }
+            }
+            return array_unique(array_filter($values));
+        }
+
+        return array_unique(array_filter($results));
+    }
+}
