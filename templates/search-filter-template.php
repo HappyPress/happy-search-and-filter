@@ -24,7 +24,9 @@ $defaults = array(
     'enableSavedFilters' => false,
     'filterStyle' => 'standard',
     'showFilterToggle' => false,
-    'className' => ''
+    'className' => '',
+    'paginationType' => 'load_more', // Added for pagination type
+    'enableInfiniteScroll' => false // Added for infinite scroll
 );
 $attributes = array_merge( $defaults, $attributes );
 
@@ -97,6 +99,8 @@ $filter_class .= ' hbl-filter-style-' . $attributes['filterStyle'];
 $data_attrs = '';
 $data_attrs .= ' data-auto-submit="' . ($attributes['enableAutoSubmit'] ? 'true' : 'false') . '"';
 $data_attrs .= ' data-saved-filters="' . ($attributes['enableSavedFilters'] ? 'true' : 'false') . '"';
+$data_attrs .= ' data-pagination-type="' . (isset($attributes['paginationType']) ? esc_attr($attributes['paginationType']) : 'load_more') . '"';
+$data_attrs .= ' data-infinite-scroll="' . (isset($attributes['enableInfiniteScroll']) ? ($attributes['enableInfiniteScroll'] ? 'true' : 'false') : 'false') . '"';
 ?>
 <div class="<?php echo esc_attr($filter_class); ?>"<?php echo $data_attrs; ?>>
     <?php if (!empty($attributes['title'])) : ?>
@@ -211,22 +215,56 @@ $data_attrs .= ' data-saved-filters="' . ($attributes['enableSavedFilters'] ? 't
         </div>
         
         <div class="hbl-filter-actions">
-            <button type="submit" class="hbl-submit-button">
-                <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.35-4.35"></path>
-                </svg>
-                <?php _e('Search', 'happy-search-and-filter'); ?>
-            </button>
-            <button type="button" class="hbl-reset-button">
-                <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-                    <path d="M21 3v5h-5"></path>
-                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-                    <path d="M3 21v-5h5"></path>
-                </svg>
-                <?php _e('Reset', 'happy-search-and-filter'); ?>
-            </button>
+            <div class="hbl-filter-actions-left">
+                <button type="submit" class="hbl-submit-button">
+                    <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <?php _e('Search', 'happy-search-and-filter'); ?>
+                </button>
+                <button type="button" class="hbl-reset-button">
+                    <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                        <path d="M21 3v5h-5"></path>
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                        <path d="M3 21v-5h5"></path>
+                    </svg>
+                    <?php _e('Reset', 'happy-search-and-filter'); ?>
+                </button>
+            </div>
+            
+            <?php if ($attributes['enableSavedFilters']) : ?>
+            <div class="hbl-filter-actions-right">
+                <div class="hbl-saved-filters-controls">
+                    <button type="button" class="hbl-save-filter-button" id="hbl-save-filter-btn">
+                        <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17,21 17,13 7,13 7,21"></polyline>
+                            <polyline points="7,3 7,8 15,8"></polyline>
+                        </svg>
+                        <?php _e('Save Filter', 'happy-search-and-filter'); ?>
+                    </button>
+                    
+                    <div class="hbl-saved-filters-dropdown" id="hbl-saved-filters-dropdown" style="display: none;">
+                        <div class="hbl-saved-filters-header">
+                            <h4><?php _e('Saved Filters', 'happy-search-and-filter'); ?></h4>
+                            <button type="button" class="hbl-close-dropdown" id="hbl-close-dropdown">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="hbl-saved-filters-list" id="hbl-saved-filters-list">
+                            <!-- Saved filters will be loaded here via JavaScript -->
+                        </div>
+                        <div class="hbl-saved-filters-empty" id="hbl-saved-filters-empty" style="display: none;">
+                            <p><?php _e('No saved filters yet.', 'happy-search-and-filter'); ?></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         
         <input type="hidden" name="results_per_page" value="<?php echo esc_attr($attributes['resultsPerPage']); ?>">

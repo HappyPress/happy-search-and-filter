@@ -22,6 +22,9 @@ function hsf_advanced_search() {
     }
 
     try {
+        // Enhanced server-side validation
+        $validation_errors = array();
+        
         // Sanitize and validate all filter parameters
         $search = isset($_POST['search']) ? sanitize_text_field(wp_unslash($_POST['search'])) : '';
         $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['category'])) : '';
@@ -34,6 +37,84 @@ function hsf_advanced_search() {
         $order = isset($_POST['order']) ? sanitize_text_field(wp_unslash($_POST['order'])) : 'DESC';
         $paged = isset($_POST['paged']) ? intval($_POST['paged']) : 1;
         $results_per_page = isset($_POST['results_per_page']) ? intval($_POST['results_per_page']) : 10;
+
+        // Server-side validation rules
+        if (!empty($search)) {
+            if (strlen($search) < 2) {
+                $validation_errors['search'] = __('Search term must be at least 2 characters', 'happy-search-and-filter');
+            } elseif (strlen($search) > 100) {
+                $validation_errors['search'] = __('Search term cannot exceed 100 characters', 'happy-search-and-filter');
+            } elseif (!preg_match('/^[a-zA-Z0-9\s\-_.,!?()]+$/', $search)) {
+                $validation_errors['search'] = __('Search term contains invalid characters', 'happy-search-and-filter');
+            }
+        }
+
+        if (!empty($location)) {
+            if (strlen($location) < 2) {
+                $validation_errors['location'] = __('Location must be at least 2 characters', 'happy-search-and-filter');
+            } elseif (strlen($location) > 50) {
+                $validation_errors['location'] = __('Location cannot exceed 50 characters', 'happy-search-and-filter');
+            } elseif (!preg_match('/^[a-zA-Z0-9\s\-_,.()]+$/', $location)) {
+                $validation_errors['location'] = __('Location contains invalid characters', 'happy-search-and-filter');
+            }
+        }
+
+        if ($rating_min > 0) {
+            if ($rating_min < 1 || $rating_min > 5) {
+                $validation_errors['rating_min'] = __('Rating must be between 1 and 5', 'happy-search-and-filter');
+            }
+        }
+
+        if ($results_per_page < 1 || $results_per_page > 100) {
+            $validation_errors['results_per_page'] = __('Results per page must be between 1 and 100', 'happy-search-and-filter');
+        }
+
+        if ($paged < 1 || $paged > 1000) {
+            $validation_errors['paged'] = __('Invalid page number', 'happy-search-and-filter');
+        }
+
+        // Validate orderby parameter
+        $allowed_orderby = array('date', 'title', 'rating', 'popularity', 'price');
+        if (!in_array($orderby, $allowed_orderby)) {
+            $validation_errors['orderby'] = __('Invalid sort order', 'happy-search-and-filter');
+        }
+
+        // Validate order parameter
+        $allowed_order = array('ASC', 'DESC');
+        if (!in_array(strtoupper($order), $allowed_order)) {
+            $validation_errors['order'] = __('Invalid sort direction', 'happy-search-and-filter');
+        }
+
+        // If validation errors exist, return them
+        if (!empty($validation_errors)) {
+            wp_send_json_error(array(
+                'message' => __('Please correct the validation errors below.', 'happy-search-and-filter'),
+                'validation_errors' => $validation_errors
+            ));
+        }
+
+        // Check if caching is enabled
+        $caching_enabled = HSF_Cache::is_caching_enabled();
+        $cache_hit = false;
+        
+        // Try to get cached results
+        if ($caching_enabled) {
+            $cached_results = HSF_Cache::get_cached_results($_POST);
+            
+            if ($cached_results !== false) {
+                $cache_hit = true;
+                HSF_Cache::update_cache_stats(true);
+                
+                wp_send_json_success(array(
+                    'html' => $cached_results['results']['html'],
+                    'count' => $cached_results['results']['count'],
+                    'current_page' => $paged,
+                    'total_pages' => $cached_results['results']['total_pages'],
+                    'cached' => true,
+                    'cache_timestamp' => $cached_results['timestamp']
+                ));
+            }
+        }
 
         // Validate pagination parameters
         $paged = max(1, min($paged, 1000)); // Prevent excessive pagination
@@ -167,6 +248,7 @@ function hsf_advanced_search() {
                 $excerpt = get_the_excerpt();
                 $permalink = get_permalink();
                 $featured_image = get_the_post_thumbnail_url($business_id, 'medium');
+                $featured_image_large = get_the_post_thumbnail_url($business_id, 'large');
                 $rating = get_post_meta($business_id, 'rating', true);
                 $location = get_post_meta($business_id, 'location', true);
                 $company_type = get_post_meta($business_id, 'company_type', true);
@@ -186,7 +268,13 @@ function hsf_advanced_search() {
                     <?php if ($featured_image) : ?>
                         <div class="hbl-business-image">
                             <a href="<?php echo esc_url($permalink); ?>">
-                                <img src="<?php echo esc_url($featured_image); ?>" alt="<?php echo esc_attr($title); ?>" loading="lazy">
+                                <img src="<?php echo esc_url($featured_image); ?>" 
+                                     data-src="<?php echo esc_url($featured_image_large); ?>"
+                                     data-srcset="<?php echo esc_url($featured_image); ?> 300w, <?php echo esc_url($featured_image_large); ?> 600w"
+                                     data-sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                     alt="<?php echo esc_attr($title); ?>" 
+                                     loading="lazy"
+                                     class="hbl-lazy-image">
                             </a>
                         </div>
                     <?php endif; ?>
@@ -228,7 +316,7 @@ function hsf_advanced_search() {
                             </div>
                         <?php endif; ?>
                         
-                        <div class="hbl-business-excerpt">
+                        <div class="hbl-business-excerpt" data-content="<?php echo esc_attr(wp_trim_words($excerpt, 20)); ?>">
                             <?php echo wp_trim_words($excerpt, 20); ?>
                         </div>
                         
@@ -243,16 +331,38 @@ function hsf_advanced_search() {
             echo '</div>'; // .hbl-results-grid
             
             // Pagination
-            if ($query->max_num_pages > 1) {
+            if ( $query->max_num_pages > 1 ) {
                 echo '<div class="hbl-pagination">';
-                echo paginate_links(array(
-                    'base' => '#',
-                    'format' => '?paged=%#%',
-                    'current' => $paged,
-                    'total' => $query->max_num_pages,
-                    'prev_text' => __('← Previous', 'happy-search-and-filter'),
-                    'next_text' => __('Next →', 'happy-search-and-filter')
-                ));
+                
+                // Check if we should show load more button or traditional pagination
+                $pagination_type = isset($_POST['pagination_type']) ? sanitize_text_field($_POST['pagination_type']) : 'traditional';
+                
+                if ($pagination_type === 'load_more' || $paged < $query->max_num_pages) {
+                    // Load More button
+                    echo '<button type="button" class="hbl-load-more hbl-submit-button">';
+                    echo '<svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">';
+                    echo '<path d="M12 5v14M5 12h14"></path>';
+                    echo '</svg>';
+                    echo sprintf(__('Load More (%d of %d)', 'happy-search-and-filter'), $paged, $query->max_num_pages);
+                    echo '</button>';
+                    
+                    // Show current page info
+                    echo '<div class="hbl-pagination-info">';
+                    echo sprintf(__('Page %d of %d', 'happy-search-and-filter'), $paged, $query->max_num_pages);
+                    echo '</div>';
+                } else {
+                    // Traditional pagination
+                    echo paginate_links( array(
+                        'base' => '#',
+                        'format' => '?paged=%#%',
+                        'current' => $paged,
+                        'total' => $query->max_num_pages,
+                        'prev_text' => __( '← Previous', 'happy-search-and-filter' ),
+                        'next_text' => __( 'Next →', 'happy-search-and-filter' ),
+                        'type' => 'array'
+                    ) );
+                }
+                
                 echo '</div>';
             }
             
@@ -261,11 +371,26 @@ function hsf_advanced_search() {
             $html = ob_get_clean();
             wp_reset_postdata();
             
+            // Cache the results if caching is enabled
+            if ($caching_enabled && !$cache_hit) {
+                $cache_expiration = HSF_Cache::get_cache_expiration($_POST);
+                $cache_data = array(
+                    'html' => $html,
+                    'count' => $query->found_posts,
+                    'total_pages' => $query->max_num_pages
+                );
+                
+                HSF_Cache::cache_results($_POST, $cache_data, $cache_expiration);
+                HSF_Cache::update_cache_stats(false);
+            }
+            
             wp_send_json_success(array(
                 'html' => $html,
                 'count' => $query->found_posts,
                 'current_page' => $paged,
-                'total_pages' => $query->max_num_pages
+                'total_pages' => $query->max_num_pages,
+                'cached' => $cache_hit,
+                'cache_timestamp' => $cache_hit ? time() : null
             ));
         } else {
             wp_send_json_error(array(

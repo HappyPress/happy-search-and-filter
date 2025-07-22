@@ -93,6 +93,7 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
             require_once HSF_PLUGIN_DIR . 'includes/search-shortcode.php';
             require_once HSF_PLUGIN_DIR . 'includes/ajax-handler.php';
             require_once HSF_PLUGIN_DIR . 'includes/saved-filters.php';
+            require_once HSF_PLUGIN_DIR . 'includes/caching.php';
             
             // Include advanced search block for page-based directory
             if (function_exists('register_block_type')) {
@@ -118,6 +119,7 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
                 wp_localize_script( 'hsf-advanced-filter', 'hsfAdvancedFilter', array(
                     'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                     'nonce'   => wp_create_nonce( 'hsf_advanced_filter_nonce' ),
+                    'savedNonce' => wp_create_nonce( 'hsf_saved_filter_nonce' ),
                     'i18n'    => array(
                         'showFilters' => __( 'Show Filters', 'happy-search-and-filter' ),
                         'hideFilters' => __( 'Hide Filters', 'happy-search-and-filter' ),
@@ -125,6 +127,9 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
                         'noSavedFilters' => __( 'No saved filters yet.', 'happy-search-and-filter' ),
                         'saveFilterPrompt' => __( 'Enter a name for this filter:', 'happy-search-and-filter' ),
                         'deleteFilterConfirm' => __( 'Are you sure you want to delete this saved filter?', 'happy-search-and-filter' ),
+                        'filterStateRestored' => __( 'Previous search filters restored', 'happy-search-and-filter' ),
+                        'cacheHit' => __( 'Results loaded from cache', 'happy-search-and-filter' ),
+                        'cacheMiss' => __( 'Results loaded from database', 'happy-search-and-filter' ),
                     ),
                 ) );
             }
@@ -204,7 +209,7 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
                     'maxDistanceOptions'  => array( 'type' => 'string', 'default' => '5,10,25,50,100' ),
                     'defaultDistanceUnit' => array( 'type' => 'string', 'default' => 'km' ),
                     'enableAutoSubmit'    => array( 'type' => 'boolean','default' => true ),
-                    'enableSavedFilters'  => array( 'type' => 'boolean','default' => false ),
+                    'enableSavedFilters'  => array( 'type' => 'boolean','default' => true ),
                     'filterStyle'         => array( 'type' => 'string', 'default' => 'standard' ),
                     'showFilterToggle'    => array( 'type' => 'boolean','default' => false ),
                     'className'           => array( 'type' => 'string' ),
@@ -244,7 +249,7 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
                     'maxDistanceOptions' => '5,10,25,50,100',
                     'defaultDistanceUnit' => 'km',
                     'enableAutoSubmit' => true,
-                    'enableSavedFilters' => false,
+                    'enableSavedFilters' => true,
                     'filterStyle' => 'standard',
                     'showFilterToggle' => false,
                     'className' => ''
