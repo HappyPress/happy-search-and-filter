@@ -119,59 +119,80 @@ $data_attrs .= ' data-infinite-scroll="' . (isset($attributes['enableInfiniteScr
             <?php if ($attributes['showLocationFilter'] && !empty($locations)) : ?>
                 <div class="hbl-filter-field hbl-filter-location">
                     <label for="hsf-filter-location"><?php _e('LOCATION', 'happy-search-and-filter'); ?></label>
-                    <select name="location" id="hsf-filter-location">
-                        <option value=""><?php _e('All Locations', 'happy-search-and-filter'); ?></option>
-                        <?php foreach ($locations as $location) : ?>
-                            <option value="<?php echo esc_attr($location); ?>" <?php selected($current_location, $location); ?>>
-                                <?php echo esc_html($location); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="hbl-multi-select-container">
+                        <select name="location[]" id="hsf-filter-location" multiple class="hbl-multi-select">
+                            <?php foreach ($locations as $location) : ?>
+                                <option value="<?php echo esc_attr($location); ?>" <?php selected(in_array($location, (array)$current_location), true); ?>>
+                                    <?php echo esc_html($location); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="hbl-selected-chips" id="hbl-location-chips"></div>
+                    </div>
                 </div>
             <?php endif; ?>
             
             <?php if ($attributes['showCompanyTypeFilter'] && !empty($company_types)) : ?>
                 <div class="hbl-filter-field hbl-filter-company-type">
                     <label for="hsf-filter-company-type"><?php _e('COMPANY TYPE', 'happy-search-and-filter'); ?></label>
-                    <select name="company_type" id="hsf-filter-company-type">
-                        <option value=""><?php _e('All Types', 'happy-search-and-filter'); ?></option>
-                        <?php foreach ($company_types as $type) : ?>
-                            <option value="<?php echo esc_attr($type); ?>" <?php selected($current_company_type, $type); ?>>
-                                <?php echo esc_html($type); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="hbl-multi-select-container">
+                        <select name="company_type[]" id="hsf-filter-company-type" multiple class="hbl-multi-select">
+                            <?php foreach ($company_types as $type) : ?>
+                                <option value="<?php echo esc_attr($type); ?>" <?php selected(in_array($type, (array)$current_company_type), true); ?>>
+                                    <?php echo esc_html($type); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="hbl-selected-chips" id="hbl-company-type-chips"></div>
+                    </div>
                 </div>
             <?php endif; ?>
             
             <?php if ($attributes['showCategoryFilter'] && !empty($categories)) : ?>
                 <div class="hbl-filter-field hbl-filter-category">
                     <label for="hsf-filter-category"><?php _e('CATEGORY', 'happy-search-and-filter'); ?></label>
-                    <select name="category" id="hsf-filter-category">
-                        <option value=""><?php _e('All Categories', 'happy-search-and-filter'); ?></option>
-                        <?php foreach ($categories as $category) : ?>
-                            <option value="<?php echo esc_attr($category->slug); ?>" <?php selected($current_category, $category->slug); ?>>
-                                <?php echo esc_html($category->name); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="hbl-multi-select-container">
+                        <select name="category[]" id="hsf-filter-category" multiple class="hbl-multi-select">
+                            <?php foreach ($categories as $category) : ?>
+                                <option value="<?php echo esc_attr($category->slug); ?>" <?php selected(in_array($category->slug, (array)$current_category), true); ?>>
+                                    <?php echo esc_html($category->name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="hbl-selected-chips" id="hbl-category-chips"></div>
+                    </div>
                 </div>
             <?php endif; ?>
             
             <?php if ($attributes['showSorting']) : ?>
                 <div class="hbl-filter-field hbl-filter-sorting">
                     <label><?php _e('SORT BY', 'happy-search-and-filter'); ?></label>
-                    <div class="hbl-sorting-selects">
-                        <select name="orderby" id="hsf-filter-orderby">
-                            <option value="date" <?php selected($current_orderby, 'date'); ?>><?php _e('Date', 'happy-search-and-filter'); ?></option>
-                            <option value="title" <?php selected($current_orderby, 'title'); ?>><?php _e('Name', 'happy-search-and-filter'); ?></option>
-                            <option value="rating" <?php selected($current_orderby, 'rating'); ?>><?php _e('Rating', 'happy-search-and-filter'); ?></option>
-                            <option value="popularity" <?php selected($current_orderby, 'popularity'); ?>><?php _e('Popularity', 'happy-search-and-filter'); ?></option>
-                        </select>
-                        <select name="order" id="hsf-filter-order">
-                            <option value="DESC" <?php selected($current_order, 'DESC'); ?>><?php _e('Descending', 'happy-search-and-filter'); ?></option>
-                            <option value="ASC" <?php selected($current_order, 'ASC'); ?>><?php _e('Ascending', 'happy-search-and-filter'); ?></option>
-                        </select>
+                    <div class="hbl-advanced-sorting">
+                        <div class="hbl-sorting-primary">
+                            <select name="orderby" id="hsf-filter-orderby">
+                                <option value="date" <?php selected($current_orderby, 'date'); ?>><?php _e('Date', 'happy-search-and-filter'); ?></option>
+                                <option value="title" <?php selected($current_orderby, 'title'); ?>><?php _e('Name', 'happy-search-and-filter'); ?></option>
+                                <option value="rating" <?php selected($current_orderby, 'rating'); ?>><?php _e('Rating', 'happy-search-and-filter'); ?></option>
+                                <option value="popularity" <?php selected($current_orderby, 'popularity'); ?>><?php _e('Popularity', 'happy-search-and-filter'); ?></option>
+                                <option value="price" <?php selected($current_orderby, 'price'); ?>><?php _e('Price', 'happy-search-and-filter'); ?></option>
+                                <option value="distance" <?php selected($current_orderby, 'distance'); ?>><?php _e('Distance', 'happy-search-and-filter'); ?></option>
+                                <option value="relevance" <?php selected($current_orderby, 'relevance'); ?>><?php _e('Relevance', 'happy-search-and-filter'); ?></option>
+                            </select>
+                        </div>
+                        <div class="hbl-sorting-secondary">
+                            <select name="order" id="hsf-filter-order">
+                                <option value="DESC" <?php selected($current_order, 'DESC'); ?>><?php _e('Descending', 'happy-search-and-filter'); ?></option>
+                                <option value="ASC" <?php selected($current_order, 'ASC'); ?>><?php _e('Ascending', 'happy-search-and-filter'); ?></option>
+                            </select>
+                        </div>
+                        <div class="hbl-sorting-tertiary">
+                            <select name="secondary_orderby" id="hsf-filter-secondary-orderby">
+                                <option value=""><?php _e('Secondary Sort', 'happy-search-and-filter'); ?></option>
+                                <option value="title" <?php selected($current_secondary_orderby, 'title'); ?>><?php _e('Name', 'happy-search-and-filter'); ?></option>
+                                <option value="rating" <?php selected($current_secondary_orderby, 'rating'); ?>><?php _e('Rating', 'happy-search-and-filter'); ?></option>
+                                <option value="date" <?php selected($current_secondary_orderby, 'date'); ?>><?php _e('Date', 'happy-search-and-filter'); ?></option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -232,10 +253,58 @@ $data_attrs .= ' data-infinite-scroll="' . (isset($attributes['enableInfiniteScr
                     </svg>
                     <?php _e('Reset', 'happy-search-and-filter'); ?>
                 </button>
+                
+                <!-- Filter Presets -->
+                <div class="hbl-filter-presets">
+                    <button type="button" class="hbl-preset-button" data-preset="popular">
+                        <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                        </svg>
+                        <?php _e('Popular', 'happy-search-and-filter'); ?>
+                    </button>
+                    <button type="button" class="hbl-preset-button" data-preset="recent">
+                        <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12,6 12,12 16,14"></polyline>
+                        </svg>
+                        <?php _e('Recent', 'happy-search-and-filter'); ?>
+                    </button>
+                    <button type="button" class="hbl-preset-button" data-preset="verified">
+                        <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22,4 12,14.01 9,11.01"></polyline>
+                        </svg>
+                        <?php _e('Verified', 'happy-search-and-filter'); ?>
+                    </button>
+                </div>
             </div>
             
-            <?php if ($attributes['enableSavedFilters']) : ?>
             <div class="hbl-filter-actions-right">
+                <!-- Export Functionality -->
+                <div class="hbl-export-controls">
+                    <button type="button" class="hbl-export-button" id="hbl-export-csv">
+                        <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10,9 9,9 8,9"></polyline>
+                        </svg>
+                        <?php _e('Export CSV', 'happy-search-and-filter'); ?>
+                    </button>
+                    <button type="button" class="hbl-export-button" id="hbl-export-pdf">
+                        <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10,9 9,9 8,9"></polyline>
+                        </svg>
+                        <?php _e('Export PDF', 'happy-search-and-filter'); ?>
+                    </button>
+                </div>
+                
+                <?php if ($attributes['enableSavedFilters']) : ?>
                 <div class="hbl-saved-filters-controls">
                     <button type="button" class="hbl-save-filter-button" id="hbl-save-filter-btn">
                         <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -263,12 +332,43 @@ $data_attrs .= ' data-infinite-scroll="' . (isset($attributes['enableInfiniteScr
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
-            <?php endif; ?>
         </div>
         
         <input type="hidden" name="results_per_page" value="<?php echo esc_attr($attributes['resultsPerPage']); ?>">
     </form>
+    
+    <!-- Search Analytics Display -->
+    <div class="hbl-search-analytics" id="hbl-search-analytics" style="display: none;">
+        <div class="hbl-analytics-header">
+            <h4><?php _e('Search Insights', 'happy-search-and-filter'); ?></h4>
+            <button type="button" class="hbl-analytics-toggle" id="hbl-analytics-toggle">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 15l-6-6-6 6"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="hbl-analytics-content" id="hbl-analytics-content">
+            <div class="hbl-analytics-stats">
+                <div class="hbl-stat-item">
+                    <span class="hbl-stat-label"><?php _e('Total Searches', 'happy-search-and-filter'); ?></span>
+                    <span class="hbl-stat-value" id="hbl-total-searches">0</span>
+                </div>
+                <div class="hbl-stat-item">
+                    <span class="hbl-stat-label"><?php _e('Popular Terms', 'happy-search-and-filter'); ?></span>
+                    <span class="hbl-stat-value" id="hbl-popular-terms">-</span>
+                </div>
+                <div class="hbl-stat-item">
+                    <span class="hbl-stat-label"><?php _e('Avg. Results', 'happy-search-and-filter'); ?></span>
+                    <span class="hbl-stat-value" id="hbl-avg-results">0</span>
+                </div>
+            </div>
+            <div class="hbl-popular-searches" id="hbl-popular-searches">
+                <!-- Popular searches will be loaded here -->
+            </div>
+        </div>
+    </div>
     
     <div id="hsf-search-results" class="hbl-search-results"></div>
 </div>

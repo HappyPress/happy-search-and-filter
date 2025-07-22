@@ -27,14 +27,15 @@ function hsf_advanced_search() {
         
         // Sanitize and validate all filter parameters
         $search = isset($_POST['search']) ? sanitize_text_field(wp_unslash($_POST['search'])) : '';
-        $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['category'])) : '';
-        $location = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
-        $company_type = isset($_POST['company_type']) ? sanitize_text_field(wp_unslash($_POST['company_type'])) : '';
+        $category = isset($_POST['category']) ? (array)$_POST['category'] : array();
+        $location = isset($_POST['location']) ? (array)$_POST['location'] : array();
+        $company_type = isset($_POST['company_type']) ? (array)$_POST['company_type'] : array();
         $rating_min = isset($_POST['rating_min']) ? floatval($_POST['rating_min']) : 0;
         $price_range = isset($_POST['price_range']) ? sanitize_text_field(wp_unslash($_POST['price_range'])) : '';
         $verified = isset($_POST['verified']) ? filter_var($_POST['verified'], FILTER_VALIDATE_BOOLEAN) : false;
         $orderby = isset($_POST['orderby']) ? sanitize_text_field(wp_unslash($_POST['orderby'])) : 'date';
         $order = isset($_POST['order']) ? sanitize_text_field(wp_unslash($_POST['order'])) : 'DESC';
+        $secondary_orderby = isset($_POST['secondary_orderby']) ? sanitize_text_field(wp_unslash($_POST['secondary_orderby'])) : '';
         $paged = isset($_POST['paged']) ? intval($_POST['paged']) : 1;
         $results_per_page = isset($_POST['results_per_page']) ? intval($_POST['results_per_page']) : 10;
 
@@ -49,13 +50,34 @@ function hsf_advanced_search() {
             }
         }
 
+        // Validate multi-select arrays
+        if (!empty($category)) {
+            $category = array_map('sanitize_text_field', $category);
+            foreach ($category as $cat) {
+                if (strlen($cat) < 2 || strlen($cat) > 50) {
+                    $validation_errors['category'] = __('Invalid category selection', 'happy-search-and-filter');
+                    break;
+                }
+            }
+        }
+
         if (!empty($location)) {
-            if (strlen($location) < 2) {
-                $validation_errors['location'] = __('Location must be at least 2 characters', 'happy-search-and-filter');
-            } elseif (strlen($location) > 50) {
-                $validation_errors['location'] = __('Location cannot exceed 50 characters', 'happy-search-and-filter');
-            } elseif (!preg_match('/^[a-zA-Z0-9\s\-_,.()]+$/', $location)) {
-                $validation_errors['location'] = __('Location contains invalid characters', 'happy-search-and-filter');
+            $location = array_map('sanitize_text_field', $location);
+            foreach ($location as $loc) {
+                if (strlen($loc) < 2 || strlen($loc) > 50) {
+                    $validation_errors['location'] = __('Invalid location selection', 'happy-search-and-filter');
+                    break;
+                }
+            }
+        }
+
+        if (!empty($company_type)) {
+            $company_type = array_map('sanitize_text_field', $company_type);
+            foreach ($company_type as $type) {
+                if (strlen($type) < 2 || strlen($type) > 50) {
+                    $validation_errors['company_type'] = __('Invalid company type selection', 'happy-search-and-filter');
+                    break;
+                }
             }
         }
 
@@ -74,7 +96,7 @@ function hsf_advanced_search() {
         }
 
         // Validate orderby parameter
-        $allowed_orderby = array('date', 'title', 'rating', 'popularity', 'price');
+        $allowed_orderby = array('date', 'title', 'rating', 'popularity', 'price', 'distance', 'relevance');
         if (!in_array($orderby, $allowed_orderby)) {
             $validation_errors['orderby'] = __('Invalid sort order', 'happy-search-and-filter');
         }
@@ -138,31 +160,40 @@ function hsf_advanced_search() {
             $args['s'] = $search;
         }
 
-        // Category filter
+        // Category filter (multi-select)
         if (!empty($category)) {
             $args['tax_query'][] = array(
                 'taxonomy' => 'business_category',
                 'field' => 'slug',
-                'terms' => $category
+                'terms' => $category,
+                'operator' => 'IN'
             );
         }
 
-        // Location filter
+        // Location filter (multi-select)
         if (!empty($location)) {
-            $args['meta_query'][] = array(
-                'key' => 'location',
-                'value' => $location,
-                'compare' => 'LIKE'
-            );
+            $location_meta_query = array('relation' => 'OR');
+            foreach ($location as $loc) {
+                $location_meta_query[] = array(
+                    'key' => 'location',
+                    'value' => $loc,
+                    'compare' => 'LIKE'
+                );
+            }
+            $args['meta_query'][] = $location_meta_query;
         }
 
-        // Company type filter
+        // Company type filter (multi-select)
         if (!empty($company_type)) {
-            $args['meta_query'][] = array(
-                'key' => 'company_type',
-                'value' => $company_type,
-                'compare' => '='
-            );
+            $company_type_meta_query = array('relation' => 'OR');
+            foreach ($company_type as $type) {
+                $company_type_meta_query[] = array(
+                    'key' => 'company_type',
+                    'value' => $type,
+                    'compare' => '='
+                );
+            }
+            $args['meta_query'][] = $company_type_meta_query;
         }
 
         // Rating filter
@@ -203,7 +234,7 @@ function hsf_advanced_search() {
             $args['tax_query']['relation'] = 'AND';
         }
 
-        // Ordering
+        // Advanced Ordering
         switch ($orderby) {
             case 'title':
                 $args['orderby'] = 'title';
@@ -220,14 +251,64 @@ function hsf_advanced_search() {
                 $args['meta_key'] = 'price_range';
                 $args['orderby'] = 'meta_value';
                 break;
+            case 'distance':
+                // Distance sorting would require geolocation data
+                $args['orderby'] = 'date';
+                break;
+            case 'relevance':
+                // Relevance sorting for search results
+                if (!empty($search)) {
+                    $args['orderby'] = 'relevance';
+                    $args['meta_query'][] = array(
+                        'relation' => 'OR',
+                        array(
+                            'key' => '_search_relevance',
+                            'compare' => 'EXISTS'
+                        )
+                    );
+                } else {
+                    $args['orderby'] = 'date';
+                }
+                break;
             default:
                 $args['orderby'] = 'date';
         }
         
         $args['order'] = $order;
+        
+        // Secondary ordering
+        if (!empty($secondary_orderby)) {
+            $args['orderby'] = array(
+                $args['orderby'] => $order,
+                $secondary_orderby => $order
+            );
+        }
 
         // Run the query
         $query = new WP_Query($args);
+        
+        // Track search analytics
+        HSF_Search_Analytics::track_search(array(
+            'search_term' => $search,
+            'filters' => array(
+                'category' => $category,
+                'location' => $location,
+                'company_type' => $company_type,
+                'rating_min' => $rating_min,
+                'price_range' => $price_range,
+                'verified' => $verified
+            ),
+            'sorting' => array(
+                'orderby' => $orderby,
+                'order' => $order,
+                'secondary_orderby' => $secondary_orderby
+            ),
+            'results_count' => $query->found_posts,
+            'page' => $paged,
+            'user_ip' => $_SERVER['REMOTE_ADDR'] ?? '',
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? '',
+            'timestamp' => current_time('timestamp')
+        ));
 
         if ($query->have_posts()) {
             ob_start();
@@ -748,4 +829,252 @@ class HSF_Image_Optimizer {
         );
     }
 }
+
+/**
+ * Search Analytics Class
+ */
+class HSF_Search_Analytics {
+    
+    /**
+     * Track search analytics
+     */
+    public static function track_search($data) {
+        // Store search data in WordPress options
+        $analytics = get_option('hsf_search_analytics', array());
+        
+        // Add current search
+        $analytics[] = $data;
+        
+        // Keep only last 1000 searches
+        if (count($analytics) > 1000) {
+            $analytics = array_slice($analytics, -1000);
+        }
+        
+        update_option('hsf_search_analytics', $analytics);
+        
+        // Update search term frequency
+        if (!empty($data['search_term'])) {
+            self::update_search_term_frequency($data['search_term']);
+        }
+    }
+    
+    /**
+     * Update search term frequency
+     */
+    public static function update_search_term_frequency($search_term) {
+        $frequency = get_option('hsf_search_term_frequency', array());
+        
+        $search_term = strtolower(trim($search_term));
+        if (!empty($search_term)) {
+            if (isset($frequency[$search_term])) {
+                $frequency[$search_term]++;
+            } else {
+                $frequency[$search_term] = 1;
+            }
+            
+            // Keep only top 100 terms
+            arsort($frequency);
+            $frequency = array_slice($frequency, 0, 100, true);
+            
+            update_option('hsf_search_term_frequency', $frequency);
+        }
+    }
+    
+    /**
+     * Get search analytics
+     */
+    public static function get_analytics() {
+        $analytics = get_option('hsf_search_analytics', array());
+        $frequency = get_option('hsf_search_term_frequency', array());
+        
+        return array(
+            'total_searches' => count($analytics),
+            'popular_terms' => array_slice($frequency, 0, 10, true),
+            'recent_searches' => array_slice($analytics, -10),
+            'avg_results' => self::calculate_average_results($analytics)
+        );
+    }
+    
+    /**
+     * Calculate average results
+     */
+    public static function calculate_average_results($analytics) {
+        if (empty($analytics)) {
+            return 0;
+        }
+        
+        $total_results = 0;
+        foreach ($analytics as $search) {
+            $total_results += $search['results_count'];
+        }
+        
+        return round($total_results / count($analytics));
+    }
+    
+    /**
+     * Get popular searches
+     */
+    public static function get_popular_searches($limit = 10) {
+        $frequency = get_option('hsf_search_term_frequency', array());
+        return array_slice($frequency, 0, $limit, true);
+    }
+}
+
+/**
+ * Export Functionality Class
+ */
+class HSF_Export {
+    
+    /**
+     * Export search results to CSV
+     */
+    public static function export_to_csv($results, $filename = 'business-listings.csv') {
+        $csv_data = array();
+        
+        // Add headers
+        $csv_data[] = array(
+            'ID',
+            'Title',
+            'Excerpt',
+            'Location',
+            'Company Type',
+            'Rating',
+            'Categories',
+            'Verified',
+            'URL',
+            'Date'
+        );
+        
+        // Add data
+        foreach ($results as $result) {
+            $csv_data[] = array(
+                $result['id'],
+                $result['title'],
+                $result['excerpt'],
+                $result['location'],
+                $result['company_type'],
+                $result['rating'],
+                $result['categories'],
+                $result['verified'] ? 'Yes' : 'No',
+                $result['url'],
+                $result['date']
+            );
+        }
+        
+        // Generate CSV
+        $csv_content = '';
+        foreach ($csv_data as $row) {
+            $csv_content .= '"' . implode('","', array_map('addslashes', $row)) . '"' . "\n";
+        }
+        
+        // Set headers for download
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
+        echo $csv_content;
+        exit;
+    }
+    
+    /**
+     * Export search results to PDF
+     */
+    public static function export_to_pdf($results, $filename = 'business-listings.pdf') {
+        // This would require a PDF library like TCPDF or mPDF
+        // For now, we'll create a simple HTML version that can be printed to PDF
+        
+        $html = '<!DOCTYPE html>
+        <html>
+        <head>
+            <title>Business Listings</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                h1 { color: #333; }
+            </style>
+        </head>
+        <body>
+            <h1>Business Listings</h1>
+            <p>Generated on: ' . date('Y-m-d H:i:s') . '</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Location</th>
+                        <th>Company Type</th>
+                        <th>Rating</th>
+                        <th>Categories</th>
+                        <th>Verified</th>
+                    </tr>
+                </thead>
+                <tbody>';
+        
+        foreach ($results as $result) {
+            $html .= '<tr>
+                <td>' . esc_html($result['title']) . '</td>
+                <td>' . esc_html($result['location']) . '</td>
+                <td>' . esc_html($result['company_type']) . '</td>
+                <td>' . esc_html($result['rating']) . '</td>
+                <td>' . esc_html($result['categories']) . '</td>
+                <td>' . ($result['verified'] ? 'Yes' : 'No') . '</td>
+            </tr>';
+        }
+        
+        $html .= '</tbody></table></body></html>';
+        
+        // Set headers for download
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
+        // For now, output HTML that can be converted to PDF
+        echo $html;
+        exit;
+    }
+}
+
+/**
+ * AJAX handlers for export functionality
+ */
+function hsf_export_csv() {
+    if (!check_ajax_referer('hsf_export_nonce', 'nonce', false)) {
+        wp_send_json_error('Security check failed');
+    }
+    
+    $results = isset($_POST['results']) ? $_POST['results'] : array();
+    HSF_Export::export_to_csv($results);
+}
+
+function hsf_export_pdf() {
+    if (!check_ajax_referer('hsf_export_nonce', 'nonce', false)) {
+        wp_send_json_error('Security check failed');
+    }
+    
+    $results = isset($_POST['results']) ? $_POST['results'] : array();
+    HSF_Export::export_to_pdf($results);
+}
+
+add_action('wp_ajax_hsf_export_csv', 'hsf_export_csv');
+add_action('wp_ajax_nopriv_hsf_export_csv', 'hsf_export_csv');
+add_action('wp_ajax_hsf_export_pdf', 'hsf_export_pdf');
+add_action('wp_ajax_nopriv_hsf_export_pdf', 'hsf_export_pdf');
+
+/**
+ * AJAX handler for search analytics
+ */
+function hsf_get_analytics() {
+    if (!check_ajax_referer('hsf_analytics_nonce', 'nonce', false)) {
+        wp_send_json_error('Security check failed');
+    }
+    
+    $analytics = HSF_Search_Analytics::get_analytics();
+    wp_send_json_success($analytics);
+}
+
+add_action('wp_ajax_hsf_get_analytics', 'hsf_get_analytics');
+add_action('wp_ajax_nopriv_hsf_get_analytics', 'hsf_get_analytics');
 ?>

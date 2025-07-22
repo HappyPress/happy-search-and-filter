@@ -50,6 +50,35 @@
             qualityThreshold: 0.8, // minimum quality for progressive loading
             enableBlurHash: false, // for future implementation
             enableAVIF: false // for future implementation
+        },
+        // Advanced features settings
+        advancedFeatures: {
+            enableMultiSelect: true,
+            enableChips: true,
+            enableAnalytics: true,
+            enableExport: true,
+            enablePresets: true,
+            enableAdvancedSorting: true,
+            maxSelections: 10, // maximum selections per filter
+            chipAnimation: true,
+            analyticsRefreshInterval: 30000, // 30 seconds
+            exportFormats: ['csv', 'pdf'],
+            presetConfigurations: {
+                popular: {
+                    orderby: 'popularity',
+                    order: 'DESC',
+                    verified: true
+                },
+                recent: {
+                    orderby: 'date',
+                    order: 'DESC'
+                },
+                verified: {
+                    verified: true,
+                    orderby: 'rating',
+                    order: 'DESC'
+                }
+            }
         }
     };
 
@@ -132,6 +161,14 @@
             this.webpSupport = this.checkWebPSupport();
             this.avifSupport = this.checkAVIFSupport();
             
+            // Advanced features properties
+            this.selectedChips = new Map();
+            this.analyticsData = null;
+            this.analyticsTimer = null;
+            this.exportResults = [];
+            this.presetActive = null;
+            this.multiSelectElements = new Set();
+            
             this.init();
         }
 
@@ -147,6 +184,7 @@
             this.setupValidation();
             this.setupLazyLoading();
             this.setupAdvancedImageOptimization(); // Add advanced image optimization
+            this.setupAdvancedFeatures(); // Add advanced features
             this.restoreFilterState();
             
             // Load all businesses by default if no filters are applied
@@ -705,6 +743,460 @@
                 skeletons: this.skeletonElements.size,
                 progressive: this.progressiveImages.size
             };
+        }
+
+        // Advanced Features Methods
+        setupAdvancedFeatures() {
+            if (config.advancedFeatures.enableMultiSelect) {
+                this.setupMultiSelectFilters();
+            }
+            
+            if (config.advancedFeatures.enableChips) {
+                this.setupChipsDisplay();
+            }
+            
+            if (config.advancedFeatures.enableAnalytics) {
+                this.setupSearchAnalytics();
+            }
+            
+            if (config.advancedFeatures.enableExport) {
+                this.setupExportFunctionality();
+            }
+            
+            if (config.advancedFeatures.enablePresets) {
+                this.setupFilterPresets();
+            }
+            
+            if (config.advancedFeatures.enableAdvancedSorting) {
+                this.setupAdvancedSorting();
+            }
+        }
+
+        // Multi-select filter functionality
+        setupMultiSelectFilters() {
+            this.form.find('.hbl-multi-select').each((index, select) => {
+                const $select = $(select);
+                const fieldName = $select.attr('name');
+                
+                this.multiSelectElements.add(fieldName);
+                
+                // Handle multi-select changes
+                $select.on('change', (e) => {
+                    this.handleMultiSelectChange($select);
+                });
+                
+                // Initialize chips for existing selections
+                this.updateChipsForField(fieldName);
+            });
+        }
+
+        handleMultiSelectChange($select) {
+            const fieldName = $select.attr('name');
+            const selectedValues = $select.val() || [];
+            
+            // Update chips
+            this.updateChipsForField(fieldName, selectedValues);
+            
+            // Save state and trigger search
+            this.saveFilterState();
+            this.handleAutoSubmit();
+        }
+
+        // Chips display functionality
+        setupChipsDisplay() {
+            // Handle chip removal
+            $(document).on('click', '.hbl-chip-remove', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const $chip = $(e.target).closest('.hbl-chip');
+                const fieldName = $chip.data('field');
+                const value = $chip.data('value');
+                
+                this.removeChip(fieldName, value);
+            });
+        }
+
+        updateChipsForField(fieldName, selectedValues = null) {
+            const $select = this.form.find(`[name="${fieldName}"]`);
+            const $chipsContainer = this.form.find(`#hbl-${fieldName.replace('[]', '')}-chips`);
+            
+            if (!$select.length || !$chipsContainer.length) {
+                return;
+            }
+            
+            const values = selectedValues || $select.val() || [];
+            
+            // Clear existing chips
+            $chipsContainer.empty();
+            
+            // Add chips for selected values
+            values.forEach(value => {
+                const $option = $select.find(`option[value="${value}"]`);
+                const label = $option.text();
+                
+                const chip = this.createChip(fieldName, value, label);
+                $chipsContainer.append(chip);
+            });
+            
+            // Store selected chips
+            this.selectedChips.set(fieldName, values);
+        }
+
+        createChip(fieldName, value, label) {
+            return $(`
+                <div class="hbl-chip" data-field="${fieldName}" data-value="${value}">
+                    <span class="hbl-chip-label">${label}</span>
+                    <button type="button" class="hbl-chip-remove" aria-label="Remove ${label}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 6L6 18M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `);
+        }
+
+        removeChip(fieldName, value) {
+            const $select = this.form.find(`[name="${fieldName}"]`);
+            const $chip = this.form.find(`.hbl-chip[data-field="${fieldName}"][data-value="${value}"]`);
+            
+            // Remove from select
+            $select.find(`option[value="${value}"]`).prop('selected', false);
+            
+            // Remove chip with animation
+            if (config.advancedFeatures.chipAnimation) {
+                $chip.fadeOut(() => {
+                    $chip.remove();
+                    this.handleMultiSelectChange($select);
+                });
+            } else {
+                $chip.remove();
+                this.handleMultiSelectChange($select);
+            }
+        }
+
+        // Search analytics functionality
+        setupSearchAnalytics() {
+            // Load initial analytics
+            this.loadSearchAnalytics();
+            
+            // Set up periodic refresh
+            this.analyticsTimer = setInterval(() => {
+                this.loadSearchAnalytics();
+            }, config.advancedFeatures.analyticsRefreshInterval);
+            
+            // Handle analytics toggle
+            $('#hbl-analytics-toggle').on('click', () => {
+                this.toggleAnalytics();
+            });
+        }
+
+        loadSearchAnalytics() {
+            $.ajax({
+                url: hsfAdvancedFilter.ajaxUrl,
+                type: 'POST',
+                data: {
+                    action: 'hsf_get_analytics',
+                    nonce: hsfAdvancedFilter.analyticsNonce
+                },
+                success: (response) => {
+                    if (response.success) {
+                        this.updateAnalyticsDisplay(response.data);
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.warn('Failed to load analytics:', error);
+                }
+            });
+        }
+
+        updateAnalyticsDisplay(analytics) {
+            this.analyticsData = analytics;
+            
+            // Update stats
+            $('#hbl-total-searches').text(analytics.total_searches);
+            $('#hbl-avg-results').text(analytics.avg_results);
+            
+            // Update popular terms
+            const popularTerms = Object.keys(analytics.popular_terms).slice(0, 5);
+            $('#hbl-popular-terms').text(popularTerms.join(', ') || '-');
+            
+            // Update popular searches list
+            this.updatePopularSearches(analytics.popular_terms);
+        }
+
+        updatePopularSearches(popularTerms) {
+            const $container = $('#hbl-popular-searches');
+            $container.empty();
+            
+            if (Object.keys(popularTerms).length === 0) {
+                $container.html('<p class="hbl-no-popular-searches">No popular searches yet.</p>');
+                return;
+            }
+            
+            const searchesHtml = Object.entries(popularTerms).map(([term, count]) => `
+                <div class="hbl-popular-search-item">
+                    <span class="hbl-search-term">${term}</span>
+                    <span class="hbl-search-count">${count}</span>
+                </div>
+            `).join('');
+            
+            $container.html(searchesHtml);
+        }
+
+        toggleAnalytics() {
+            const $analytics = $('#hbl-search-analytics');
+            const $content = $('#hbl-analytics-content');
+            const $toggle = $('#hbl-analytics-toggle');
+            
+            if ($analytics.is(':visible')) {
+                $content.slideUp();
+                $toggle.find('svg').css('transform', 'rotate(0deg)');
+            } else {
+                $analytics.show();
+                $content.slideDown();
+                $toggle.find('svg').css('transform', 'rotate(180deg)');
+            }
+        }
+
+        // Export functionality
+        setupExportFunctionality() {
+            $('#hbl-export-csv').on('click', () => {
+                this.exportResults('csv');
+            });
+            
+            $('#hbl-export-pdf').on('click', () => {
+                this.exportResults('pdf');
+            });
+        }
+
+        exportResults(format) {
+            if (this.exportResults.length === 0) {
+                this.showNotification('No results to export. Please perform a search first.', 'warning');
+                return;
+            }
+            
+            // Show loading state
+            this.showNotification(`Preparing ${format.toUpperCase()} export...`, 'info');
+            
+            // Create form data for export
+            const formData = new FormData();
+            formData.append('action', `hsf_export_${format}`);
+            formData.append('nonce', hsfAdvancedFilter.exportNonce);
+            formData.append('results', JSON.stringify(this.exportResults));
+            
+            // Submit export request
+            $.ajax({
+                url: hsfAdvancedFilter.ajaxUrl,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: (response) => {
+                    // Handle file download
+                    this.downloadFile(response, `business-listings.${format}`);
+                    this.showNotification(`${format.toUpperCase()} export completed!`, 'success');
+                },
+                error: (xhr, status, error) => {
+                    this.showNotification(`Export failed: ${error}`, 'error');
+                }
+            });
+        }
+
+        downloadFile(content, filename) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Filter presets functionality
+        setupFilterPresets() {
+            $('.hbl-preset-button').on('click', (e) => {
+                const preset = $(e.target).closest('.hbl-preset-button').data('preset');
+                this.applyFilterPreset(preset);
+            });
+        }
+
+        applyFilterPreset(preset) {
+            const presetConfig = config.advancedFeatures.presetConfigurations[preset];
+            
+            if (!presetConfig) {
+                console.warn(`Unknown preset: ${preset}`);
+                return;
+            }
+            
+            // Reset form first
+            this.form[0].reset();
+            
+            // Apply preset configuration
+            Object.keys(presetConfig).forEach(key => {
+                const value = presetConfig[key];
+                const $field = this.form.find(`[name="${key}"]`);
+                
+                if ($field.length) {
+                    if ($field.attr('type') === 'checkbox') {
+                        $field.prop('checked', value);
+                    } else {
+                        $field.val(value);
+                    }
+                }
+            });
+            
+            // Update chips
+            this.multiSelectElements.forEach(fieldName => {
+                this.updateChipsForField(fieldName);
+            });
+            
+            // Mark preset as active
+            this.presetActive = preset;
+            $('.hbl-preset-button').removeClass('active');
+            $(`.hbl-preset-button[data-preset="${preset}"]`).addClass('active');
+            
+            // Trigger search
+            this.saveFilterState();
+            this.handleSubmit(1);
+            
+            this.showNotification(`Applied "${preset}" filter preset`, 'success');
+        }
+
+        // Advanced sorting functionality
+        setupAdvancedSorting() {
+            // Handle secondary sorting changes
+            $('#hsf-filter-secondary-orderby').on('change', () => {
+                this.saveFilterState();
+                this.handleAutoSubmit();
+            });
+            
+            // Handle order direction changes
+            $('#hsf-filter-order').on('change', () => {
+                this.saveFilterState();
+                this.handleAutoSubmit();
+            });
+        }
+
+        // Enhanced form data collection for multi-select
+        getFormData() {
+            const formData = {};
+            const formArray = this.form.serializeArray();
+            
+            formArray.forEach(item => {
+                if (item.value) {
+                    if (formData[item.name]) {
+                        if (Array.isArray(formData[item.name])) {
+                            formData[item.name].push(item.value);
+                        } else {
+                            formData[item.name] = [formData[item.name], item.value];
+                        }
+                    } else {
+                        formData[item.name] = item.value;
+                    }
+                }
+            });
+            
+            // Handle multi-select arrays properly
+            this.multiSelectElements.forEach(fieldName => {
+                const $select = this.form.find(`[name="${fieldName}"]`);
+                const selectedValues = $select.val() || [];
+                
+                if (selectedValues.length > 0) {
+                    formData[fieldName] = selectedValues;
+                }
+            });
+            
+            return formData;
+        }
+
+        // Enhanced success handler to collect export data
+        handleSuccess(response, isNewSearch) {
+            if (response.success) {
+                if (isNewSearch) {
+                    // Replace results for new search
+                    this.resultsContainer.html(response.data.html);
+                    
+                    // Collect export data
+                    this.collectExportData(response.data);
+                } else {
+                    // Append results for pagination
+                    this.appendResults(response.data.html);
+                }
+                
+                // Setup lazy loading for new content
+                this.setupLazyElements();
+                
+                // Update pagination info
+                this.currentPage = response.data.current_page || 1;
+                this.totalPages = response.data.total_pages || 1;
+                
+                // Update ARIA label
+                this.resultsContainer.attr('aria-label', `Found ${response.data.count || 0} results`);
+                
+                // Update pagination controls
+                this.updatePaginationControls();
+                
+                // Show cache status if available
+                if (response.data.cached !== undefined) {
+                    this.showCacheStatus(response.data.cached, response.data.cache_timestamp);
+                }
+                
+                // Scroll to top for new searches
+                if (isNewSearch) {
+                    this.scrollToResults();
+                }
+                
+                // Trigger custom event
+                $(document).trigger('hsf:searchComplete', [response.data]);
+            } else {
+                this.showError(response.data || 'Search failed. Please try again.');
+            }
+        }
+
+        collectExportData(data) {
+            // Extract business data from HTML for export
+            const $results = this.resultsContainer.find('.hbl-business-card');
+            this.exportResults = [];
+            
+            $results.each((index, card) => {
+                const $card = $(card);
+                const $title = $card.find('.hbl-business-title a');
+                const $excerpt = $card.find('.hbl-business-excerpt');
+                const $location = $card.find('.hbl-business-location');
+                const $type = $card.find('.hbl-business-type');
+                const $rating = $card.find('.hbl-rating-text');
+                const $categories = $card.find('.hbl-business-categories');
+                const $verified = $card.find('.hbl-verified-badge');
+                
+                this.exportResults.push({
+                    id: index + 1,
+                    title: $title.text().trim(),
+                    excerpt: $excerpt.text().trim(),
+                    location: $location.text().replace('📍', '').trim(),
+                    company_type: $type.text().trim(),
+                    rating: $rating.text().trim(),
+                    categories: $categories.text().trim(),
+                    verified: $verified.length > 0,
+                    url: $title.attr('href'),
+                    date: new Date().toISOString().split('T')[0]
+                });
+            });
+        }
+
+        // Cleanup method for advanced features
+        cleanup() {
+            // Clear analytics timer
+            if (this.analyticsTimer) {
+                clearInterval(this.analyticsTimer);
+            }
+            
+            // Clear other timers
+            if (this.imageObserver) {
+                this.imageObserver.disconnect();
+            }
         }
 
         debounceResize() {
@@ -1722,6 +2214,16 @@
                 }
             });
             
+            // Handle multi-select arrays properly
+            this.multiSelectElements.forEach(fieldName => {
+                const $select = this.form.find(`[name="${fieldName}"]`);
+                const selectedValues = $select.val() || [];
+                
+                if (selectedValues.length > 0) {
+                    formData[fieldName] = selectedValues;
+                }
+            });
+            
             return formData;
         }
 
@@ -1730,6 +2232,9 @@
                 if (isNewSearch) {
                     // Replace results for new search
                     this.resultsContainer.html(response.data.html);
+                    
+                    // Collect export data
+                    this.collectExportData(response.data);
                 } else {
                     // Append results for pagination
                     this.appendResults(response.data.html);
