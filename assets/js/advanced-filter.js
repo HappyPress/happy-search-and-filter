@@ -825,30 +825,56 @@
         setupMultiSelectFilters() {
             this.form.find('.hbl-multi-select').each((index, select) => {
                 const $select = $(select);
-                const fieldName = $select.attr('name');
-                
+                const fieldName = $select.attr('name')?.replace('[]', '') || '';
                 this.multiSelectElements.add(fieldName);
                 
-                // Handle multi-select changes
+                // Initialize display
+                this.updateMultiSelectDisplay($select);
+                
                 $select.on('change', (e) => {
                     this.handleMultiSelectChange($select);
+                    this.updateMultiSelectDisplay($select);
                 });
                 
-                // Initialize chips for existing selections
+                // Update chips display
                 this.updateChipsForField(fieldName);
             });
         }
 
         handleMultiSelectChange($select) {
-            const fieldName = $select.attr('name');
-            const selectedValues = $select.val() || [];
+            const fieldName = $select.attr('name')?.replace('[]', '') || '';
+            this.updateChipsForField(fieldName);
             
-            // Update chips
-            this.updateChipsForField(fieldName, selectedValues);
+            // Trigger form change if auto-submit is enabled
+            if (config.enableAutoSubmit) {
+                this.handleAutoSubmit();
+            }
+        }
+
+        // Update the multi-select display to show selection summary
+        updateMultiSelectDisplay($select) {
+            const selectedOptions = $select.find('option:checked');
+            const totalOptions = $select.find('option').length;
             
-            // Save state and trigger search
-            this.saveFilterState();
-            this.handleAutoSubmit();
+            if (selectedOptions.length === 0) {
+                $select.removeClass('has-selections');
+                $select.removeAttr('data-selected-count');
+            } else {
+                $select.addClass('has-selections');
+                $select.attr('data-selected-count', selectedOptions.length);
+                
+                // Update the visual summary in the select
+                if (selectedOptions.length === 1) {
+                    // Show single selection
+                    const selectedText = selectedOptions.first().text();
+                    if (selectedText.length > 20) {
+                        $select.attr('title', selectedText);
+                    }
+                } else {
+                    // Show count for multiple selections
+                    $select.attr('title', `${selectedOptions.length} items selected`);
+                }
+            }
         }
 
         // Chips display functionality
@@ -2334,21 +2360,42 @@
         }
 
         handleError(xhr, status, error) {
-            console.error('HSF Error:', { xhr, status, error });
+            console.error('HSF: AJAX error:', { xhr, status, error });
             
             // Clear loading state
             this.setLoading(false);
             
             let errorMessage = 'An error occurred while processing your request.';
             
-            if (xhr.responseJSON && xhr.responseJSON.data) {
-                errorMessage = xhr.responseJSON.data;
-            } else if (xhr.status === 0) {
-                errorMessage = 'Network error. Please check your connection.';
-            } else if (xhr.status === 403) {
-                errorMessage = 'Access denied. Please refresh the page and try again.';
-            } else if (xhr.status === 500) {
-                errorMessage = 'Server error. Please try again later.';
+            try {
+                if (xhr.responseJSON && xhr.responseJSON.data) {
+                    if (typeof xhr.responseJSON.data === 'string') {
+                        errorMessage = xhr.responseJSON.data;
+                    } else if (xhr.responseJSON.data.message) {
+                        errorMessage = xhr.responseJSON.data.message;
+                    }
+                } else if (xhr.responseText) {
+                    // Try to parse response text
+                    try {
+                        const parsed = JSON.parse(xhr.responseText);
+                        if (parsed.data && typeof parsed.data === 'string') {
+                            errorMessage = parsed.data;
+                        }
+                    } catch (e) {
+                        // If parsing fails, check status codes
+                        if (xhr.status === 0) {
+                            errorMessage = 'Network error. Please check your connection.';
+                        } else if (xhr.status === 403) {
+                            errorMessage = 'Access denied. Please refresh the page and try again.';
+                        } else if (xhr.status === 500) {
+                            errorMessage = 'Server error. Please try again later.';
+                        } else if (xhr.status === 404) {
+                            errorMessage = 'Search endpoint not found. Please contact support.';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('HSF: Error parsing error response:', e);
             }
             
             this.showError(errorMessage);
@@ -2358,9 +2405,27 @@
         }
 
         showError(message) {
+            // Ensure message is a string
+            if (typeof message !== 'string') {
+                message = 'An unexpected error occurred. Please try again.';
+            }
+            
             const errorHtml = `
                 <div class="hbl-error" role="alert">
-                    <p>${message}</p>
+                    <div class="hbl-error-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div class="hbl-error-content">
+                        <h4>Search Error</h4>
+                        <p>${message}</p>
+                        <button type="button" class="hbl-retry-search" onclick="window.location.reload()">
+                            Reload Page
+                        </button>
+                    </div>
                 </div>
             `;
             this.resultsContainer.html(errorHtml);

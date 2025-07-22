@@ -252,25 +252,27 @@
 /* Filter actions - Horizontal layout */
 .hbl-filter-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--hsf-spacing-sm);
-    margin-top: var(--hsf-spacing-lg);
-    padding-top: var(--hsf-spacing-lg);
-    border-top: 1px solid var(--hsf-border-color);
+    gap: var(--hsf-spacing-md);
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    margin-top: var(--hsf-spacing-lg);
+    padding-top: var(--hsf-spacing-md);
+    border-top: 1px solid var(--hsf-border-color);
 }
 
 .hbl-filter-actions-left {
     display: flex;
     gap: var(--hsf-spacing-sm);
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .hbl-filter-actions-right {
     display: flex;
     gap: var(--hsf-spacing-sm);
     align-items: center;
+    flex-wrap: wrap;
 }
 
 /* Saved filters controls */
@@ -398,25 +400,27 @@
 
 /* Save filter button */
 .hbl-save-filter-button {
-    background-color: var(--hsf-success-color);
+    background: #f59e0b;
     color: white;
-    border: none;
-    border-radius: var(--hsf-border-radius-sm);
-    padding: 0.75rem 1.5rem;
+    border: 1px solid #f59e0b;
+    border-radius: var(--hsf-border-radius);
+    padding: var(--hsf-spacing-sm) var(--hsf-spacing-md);
+    min-height: 2.5rem;
     font-size: 0.875rem;
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     transition: var(--hsf-transition);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--hsf-spacing-xs);
-    min-height: 44px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    white-space: nowrap;
 }
 
 .hbl-save-filter-button:hover {
-    background-color: var(--hsf-success-hover);
+    background: #d97706;
+    border-color: #d97706;
     transform: translateY(-1px);
-    box-shadow: var(--hsf-shadow-md);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
 /* Button styles - Modern design */
@@ -557,12 +561,52 @@
 
 /* Error states */
 .hbl-error {
-    background-color: #fee;
-    border: 1px solid #fcc;
-    color: var(--hsf-danger-color);
-    padding: var(--hsf-spacing-md);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--hsf-spacing-md);
+    padding: var(--hsf-spacing-lg);
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: var(--hsf-border-radius);
+    color: #dc2626;
+    margin: var(--hsf-spacing-lg) 0;
+}
+
+.hbl-error-icon {
+    flex-shrink: 0;
+    color: #dc2626;
+}
+
+.hbl-error-content {
+    flex: 1;
+}
+
+.hbl-error-content h4 {
+    margin: 0 0 var(--hsf-spacing-xs) 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #dc2626;
+}
+
+.hbl-error-content p {
+    margin: 0 0 var(--hsf-spacing-md) 0;
+    color: #7f1d1d;
+    line-height: 1.5;
+}
+
+.hbl-retry-search {
+    padding: var(--hsf-spacing-xs) var(--hsf-spacing-sm);
+    background: #dc2626;
+    color: white;
+    border: none;
     border-radius: var(--hsf-border-radius-sm);
-    margin-bottom: var(--hsf-spacing-md);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--hsf-transition);
+}
+
+.hbl-retry-search:hover {
+    background: #b91c1c;
 }
 
 /* Animations */
@@ -2828,33 +2872,43 @@
    ADVANCED FEATURES STYLES
    ======================================== */
 
-/* Multi-select filter styles */
+/* Multi-select filter styles - Improved Design */
 .hbl-multi-select-container {
     position: relative;
 }
 
 .hbl-multi-select {
     width: 100%;
-    min-height: 2.5rem;
+    height: 2.5rem; /* Fixed height instead of min-height */
     padding: var(--hsf-spacing-sm);
     border: 1px solid var(--hsf-border-color);
     border-radius: var(--hsf-border-radius);
     background: white;
     font-size: 0.875rem;
     transition: var(--hsf-transition);
-    /* Ensure dropdown shows as a list */
-    max-height: 200px;
-    overflow-y: auto;
     /* Remove default browser styling */
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
+    /* Make it look like a single select initially */
+    overflow: hidden;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
 }
 
 .hbl-multi-select:focus {
     outline: none;
     border-color: var(--hsf-primary-color);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    /* Show dropdown behavior on focus */
+    height: auto;
+    max-height: 200px;
+    overflow-y: auto;
+    background-image: none;
+    padding-right: var(--hsf-spacing-sm);
 }
 
 .hbl-multi-select option {
@@ -2875,31 +2929,39 @@
     background: var(--hsf-background-alt);
 }
 
-/* Ensure proper dropdown behavior */
-.hbl-multi-select[size] {
-    /* Force dropdown to show as list when size is set */
-    height: auto;
-    max-height: 200px;
+/* When multi-select has selections, show summary */
+.hbl-multi-select.has-selections {
+    color: var(--hsf-primary-color);
+    font-weight: 500;
 }
 
-/* Firefox specific styling */
-.hbl-multi-select:-moz-focusring {
-    color: transparent;
-    text-shadow: 0 0 0 var(--hsf-text-color);
+.hbl-multi-select.has-selections::before {
+    content: attr(data-selected-count) " selected";
+    position: absolute;
+    top: 50%;
+    left: var(--hsf-spacing-sm);
+    transform: translateY(-50%);
+    color: var(--hsf-primary-color);
+    font-weight: 500;
 }
 
-/* Webkit browsers specific styling */
-.hbl-multi-select::-webkit-listbox {
-    max-height: 200px;
-}
-
-/* Chips display styles */
+/* Chips display styles - Enhanced */
 .hbl-selected-chips {
     display: flex;
     flex-wrap: wrap;
     gap: var(--hsf-spacing-xs);
     margin-top: var(--hsf-spacing-xs);
     min-height: 1.5rem;
+    max-height: 120px;
+    overflow-y: auto;
+    padding: var(--hsf-spacing-xs);
+    border: 1px solid transparent;
+    border-radius: var(--hsf-border-radius);
+}
+
+.hbl-selected-chips:not(:empty) {
+    border-color: var(--hsf-border-color);
+    background: var(--hsf-background-alt);
 }
 
 .hbl-chip {
@@ -2914,10 +2976,11 @@
     font-weight: 500;
     transition: var(--hsf-transition);
     animation: hsf-chipSlideIn 0.2s ease-out;
+    max-width: 150px;
 }
 
 .hbl-chip:hover {
-    background: var(--hsf-primary-dark);
+    background: var(--hsf-secondary-color);
     transform: translateY(-1px);
 }
 
@@ -2925,25 +2988,27 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 120px;
+    max-width: 100px;
 }
 
 .hbl-chip-remove {
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    padding: 0.125rem;
-    border-radius: var(--hsf-border-radius-sm);
-    transition: var(--hsf-transition);
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    transition: var(--hsf-transition);
+    font-size: 12px;
+    line-height: 1;
 }
 
 .hbl-chip-remove:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.3);
     transform: scale(1.1);
 }
 
@@ -3009,16 +3074,17 @@
     align-items: center;
     gap: var(--hsf-spacing-xs);
     padding: var(--hsf-spacing-xs) var(--hsf-spacing-sm);
-    background: var(--hsf-background-alt);
+    background: white;
     border: 1px solid var(--hsf-border-color);
     border-radius: var(--hsf-border-radius-sm);
-    color: var(--hsf-text-color);
-    font-size: 0.75rem;
+    color: var(--hsf-text-muted);
+    font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
     transition: var(--hsf-transition);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    min-height: 2.25rem;
 }
 
 .hbl-preset-button:hover {
@@ -3050,8 +3116,8 @@
     align-items: center;
     gap: var(--hsf-spacing-xs);
     padding: var(--hsf-spacing-xs) var(--hsf-spacing-sm);
-    background: var(--hsf-success-color);
-    border: 1px solid var(--hsf-success-color);
+    background: #10b981;
+    border: 1px solid #10b981;
     border-radius: var(--hsf-border-radius-sm);
     color: white;
     font-size: 0.75rem;
@@ -3060,12 +3126,14 @@
     transition: var(--hsf-transition);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    min-height: 2.5rem;
 }
 
 .hbl-export-button:hover {
-    background: var(--hsf-success-dark);
-    border-color: var(--hsf-success-dark);
+    background: #059669;
+    border-color: #059669;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .hbl-export-button .hbl-icon {
