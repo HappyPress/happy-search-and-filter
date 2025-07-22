@@ -37,6 +37,19 @@
             leading: false,
             trailing: true,
             maxWait: 1000 // Maximum wait time for trailing edge
+        },
+        // Image optimization settings
+        imageOptimization: {
+            enableWebP: true,
+            enableProgressiveLoading: true,
+            enableSkeletonLoading: true,
+            enableErrorFallbacks: true,
+            retryAttempts: 3,
+            retryDelay: 1000,
+            preloadThreshold: 200, // pixels before viewport
+            qualityThreshold: 0.8, // minimum quality for progressive loading
+            enableBlurHash: false, // for future implementation
+            enableAVIF: false // for future implementation
         }
     };
 
@@ -109,6 +122,16 @@
             this.isSearching = false;
             this.pendingSearch = null;
             
+            // Enhanced image optimization properties
+            this.imageObserver = null;
+            this.imageLoadQueue = new Map();
+            this.failedImages = new Set();
+            this.loadedImages = new Set();
+            this.skeletonElements = new Set();
+            this.progressiveImages = new Map();
+            this.webpSupport = this.checkWebPSupport();
+            this.avifSupport = this.checkAVIFSupport();
+            
             this.init();
         }
 
@@ -123,6 +146,7 @@
             this.setupInfiniteScroll();
             this.setupValidation();
             this.setupLazyLoading();
+            this.setupAdvancedImageOptimization(); // Add advanced image optimization
             this.restoreFilterState();
             
             // Load all businesses by default if no filters are applied
@@ -314,20 +338,27 @@
         }
 
         setupLazyElements() {
-            // Setup lazy loading for images
-            this.resultsContainer.find('img[data-src]').each((index, img) => {
+            // Setup advanced image optimization for new content
+            this.resultsContainer.find('img[data-src], img[data-webp-src], img[data-avif-src]').each((index, img) => {
                 const $img = $(img);
+                const imageId = `img-${Date.now()}-${index}`;
                 
-                // Set placeholder
+                // Set unique ID for tracking
+                $img.data('image-id', imageId);
+                
+                // Set placeholder if no src
                 if (!$img.attr('src')) {
                     $img.attr('src', config.lazyLoadPlaceholder);
                 }
                 
-                $img.addClass('hbl-lazy-image');
+                // Add loading class
+                $img.addClass('hbl-lazy-image hbl-loading');
                 
-                if (this.lazyLoadObserver) {
-                    this.lazyLoadObserver.observe(img);
+                // Observe with Intersection Observer
+                if (this.imageObserver) {
+                    this.imageObserver.observe(img);
                 } else {
+                    // Fallback to scroll-based loading
                     this.lazyLoadElements.add(img);
                 }
             });
@@ -343,6 +374,337 @@
                     this.lazyLoadElements.add(element);
                 }
             });
+            
+            // Setup skeleton loading for missing images
+            if (config.imageOptimization.enableSkeletonLoading) {
+                this.setupSkeletonLoading();
+            }
+        }
+
+        // Enhanced Image Optimization Methods
+        setupAdvancedImageOptimization() {
+            // Setup Intersection Observer for images
+            this.setupImageObserver();
+            
+            // Setup progressive loading
+            if (config.imageOptimization.enableProgressiveLoading) {
+                this.setupProgressiveLoading();
+            }
+            
+            // Setup skeleton loading
+            if (config.imageOptimization.enableSkeletonLoading) {
+                this.setupSkeletonLoading();
+            }
+            
+            // Setup error handling
+            if (config.imageOptimization.enableErrorFallbacks) {
+                this.setupImageErrorHandling();
+            }
+        }
+
+        setupImageObserver() {
+            if (!('IntersectionObserver' in window)) {
+                this.setupFallbackImageLoading();
+                return;
+            }
+
+            const options = {
+                root: null,
+                rootMargin: `${config.imageOptimization.preloadThreshold}px`,
+                threshold: [0, 0.1, 0.5, 1.0]
+            };
+
+            this.imageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.loadOptimizedImage(entry.target);
+                        this.imageObserver.unobserve(entry.target);
+                    }
+                });
+            }, options);
+        }
+
+        loadOptimizedImage(imgElement) {
+            const $img = $(imgElement);
+            const imageId = $img.data('image-id') || Math.random().toString(36);
+            
+            // Check if already loaded or failed
+            if (this.loadedImages.has(imageId) || this.failedImages.has(imageId)) {
+                return;
+            }
+            
+            // Add to load queue
+            this.imageLoadQueue.set(imageId, {
+                element: imgElement,
+                attempts: 0,
+                timestamp: Date.now()
+            });
+            
+            this.processImageLoadQueue(imageId);
+        }
+
+        processImageLoadQueue(imageId) {
+            const imageData = this.imageLoadQueue.get(imageId);
+            if (!imageData) return;
+            
+            const $img = $(imageData.element);
+            const attempts = imageData.attempts;
+            
+            if (attempts >= config.imageOptimization.retryAttempts) {
+                this.handleImageLoadError($img, imageId);
+                return;
+            }
+            
+            // Update attempt count
+            imageData.attempts++;
+            this.imageLoadQueue.set(imageId, imageData);
+            
+            // Get optimized image URL
+            const optimizedUrl = this.getOptimizedImageUrl($img);
+            
+            if (!optimizedUrl) {
+                this.handleImageLoadError($img, imageId);
+                return;
+            }
+            
+            // Load image with timeout
+            this.loadImageWithTimeout($img, optimizedUrl, imageId);
+        }
+
+        getOptimizedImageUrl($img) {
+            // Check for WebP support and availability
+            if (config.imageOptimization.enableWebP && this.webpSupport) {
+                const webpUrl = $img.data('webp-src') || $img.data('webp-srcset');
+                if (webpUrl) {
+                    return webpUrl;
+                }
+            }
+            
+            // Check for AVIF support
+            if (config.imageOptimization.enableAVIF && this.avifSupport) {
+                const avifUrl = $img.data('avif-src') || $img.data('avif-srcset');
+                if (avifUrl) {
+                    return avifUrl;
+                }
+            }
+            
+            // Fallback to standard image
+            return $img.data('src') || $img.attr('src');
+        }
+
+        loadImageWithTimeout($img, imageUrl, imageId) {
+            const timeout = 10000; // 10 seconds timeout
+            const startTime = Date.now();
+            
+            // Create temporary image for testing
+            const tempImg = new Image();
+            
+            tempImg.onload = () => {
+                const loadTime = Date.now() - startTime;
+                this.handleImageLoadSuccess($img, imageUrl, imageId, loadTime);
+            };
+            
+            tempImg.onerror = () => {
+                const loadTime = Date.now() - startTime;
+                this.handleImageLoadError($img, imageId, loadTime);
+            };
+            
+            // Set timeout
+            setTimeout(() => {
+                if (tempImg.complete === false) {
+                    tempImg.src = '';
+                    this.handleImageLoadError($img, imageId, timeout);
+                }
+            }, timeout);
+            
+            tempImg.src = imageUrl;
+        }
+
+        handleImageLoadSuccess($img, imageUrl, imageId, loadTime) {
+            // Remove from queue
+            this.imageLoadQueue.delete(imageId);
+            
+            // Add to loaded images
+            this.loadedImages.add(imageId);
+            
+            // Update image
+            $img.attr('src', imageUrl)
+                .removeClass('hbl-lazy-image hbl-loading')
+                .addClass('hbl-loaded')
+                .removeAttr('data-src data-webp-src data-avif-src');
+            
+            // Remove skeleton if exists
+            this.removeSkeleton($img);
+            
+            // Trigger progressive loading if enabled
+            if (config.imageOptimization.enableProgressiveLoading) {
+                this.triggerProgressiveLoading($img, imageUrl);
+            }
+            
+            // Log performance
+            console.log(`Image loaded successfully: ${imageUrl} (${loadTime}ms)`);
+        }
+
+        handleImageLoadError($img, imageId, loadTime = 0) {
+            // Remove from queue
+            this.imageLoadQueue.delete(imageId);
+            
+            // Add to failed images
+            this.failedImages.add(imageId);
+            
+            // Show error fallback
+            this.showImageErrorFallback($img);
+            
+            // Log error
+            console.error(`Image load failed: ${$img.data('src')} (${loadTime}ms)`);
+        }
+
+        setupProgressiveLoading() {
+            // Setup progressive image loading
+            this.resultsContainer.on('load', 'img.hbl-lazy-image', (e) => {
+                const $img = $(e.target);
+                const imageUrl = $img.attr('src');
+                
+                if (imageUrl && !imageUrl.includes('data:image')) {
+                    this.progressiveImages.set(imageUrl, {
+                        element: e.target,
+                        loaded: true,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        }
+
+        triggerProgressiveLoading($img, imageUrl) {
+            // Check if we have a higher quality version
+            const highQualityUrl = $img.data('high-quality-src');
+            
+            if (highQualityUrl && highQualityUrl !== imageUrl) {
+                // Load high quality version in background
+                const highQualityImg = new Image();
+                highQualityImg.onload = () => {
+                    $img.attr('src', highQualityUrl)
+                        .addClass('hbl-progressive-loaded');
+                };
+                highQualityImg.src = highQualityUrl;
+            }
+        }
+
+        setupSkeletonLoading() {
+            // Replace missing images with skeleton
+            this.resultsContainer.find('.hbl-business-image:not(:has(img))').each((index, element) => {
+                const $element = $(element);
+                const skeletonId = `skeleton-${Date.now()}-${index}`;
+                
+                $element.html(`
+                    <div class="hbl-skeleton-image" data-skeleton-id="${skeletonId}">
+                        <div class="hbl-skeleton-shimmer"></div>
+                    </div>
+                `);
+                
+                this.skeletonElements.add(skeletonId);
+            });
+        }
+
+        removeSkeleton($img) {
+            const $skeleton = $img.closest('.hbl-business-image').find('.hbl-skeleton-image');
+            if ($skeleton.length) {
+                const skeletonId = $skeleton.data('skeleton-id');
+                this.skeletonElements.delete(skeletonId);
+                $skeleton.fadeOut(() => $skeleton.remove());
+            }
+        }
+
+        setupImageErrorHandling() {
+            // Handle image errors
+            this.resultsContainer.on('error', 'img', (e) => {
+                const $img = $(e.target);
+                const imageId = $img.data('image-id') || Math.random().toString(36);
+                
+                // Retry loading
+                if (this.imageLoadQueue.has(imageId)) {
+                    const imageData = this.imageLoadQueue.get(imageId);
+                    if (imageData.attempts < config.imageOptimization.retryAttempts) {
+                        setTimeout(() => {
+                            this.processImageLoadQueue(imageId);
+                        }, config.imageOptimization.retryDelay);
+                        return;
+                    }
+                }
+                
+                this.showImageErrorFallback($img);
+            });
+        }
+
+        showImageErrorFallback($img) {
+            // Show placeholder image
+            $img.attr('src', config.lazyLoadPlaceholder)
+                .addClass('hbl-image-error')
+                .removeClass('hbl-lazy-image hbl-loading');
+            
+            // Add error indicator
+            $img.after(`
+                <div class="hbl-image-error-indicator">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <span>Image unavailable</span>
+                </div>
+            `);
+        }
+
+        setupFallbackImageLoading() {
+            // Fallback for browsers without Intersection Observer
+            $(window).on('scroll', () => {
+                if (this.scrollTimer) {
+                    clearTimeout(this.scrollTimer);
+                }
+                
+                this.scrollTimer = setTimeout(() => {
+                    this.checkFallbackImages();
+                }, 100);
+            });
+        }
+
+        checkFallbackImages() {
+            const windowHeight = $(window).height();
+            const scrollTop = $(window).scrollTop();
+            const threshold = config.imageOptimization.preloadThreshold;
+
+            this.resultsContainer.find('img.hbl-lazy-image').each((index, img) => {
+                const $img = $(img);
+                const elementTop = $img.offset().top;
+                const elementHeight = $img.outerHeight();
+
+                if (elementTop <= windowHeight + scrollTop + threshold) {
+                    this.loadOptimizedImage(img);
+                }
+            });
+        }
+
+        checkWebPSupport() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1;
+            canvas.height = 1;
+            return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+        }
+
+        checkAVIFSupport() {
+            // Basic AVIF support check
+            return 'avif' in new Image();
+        }
+
+        // Performance monitoring
+        getImageLoadStats() {
+            return {
+                loaded: this.loadedImages.size,
+                failed: this.failedImages.size,
+                queued: this.imageLoadQueue.size,
+                skeletons: this.skeletonElements.size,
+                progressive: this.progressiveImages.size
+            };
         }
 
         debounceResize() {

@@ -247,8 +247,26 @@ function hsf_advanced_search() {
                 $title = get_the_title();
                 $excerpt = get_the_excerpt();
                 $permalink = get_permalink();
+                
+                // Enhanced image handling with responsive sizes and WebP support
                 $featured_image = get_the_post_thumbnail_url($business_id, 'medium');
                 $featured_image_large = get_the_post_thumbnail_url($business_id, 'large');
+                $featured_image_full = get_the_post_thumbnail_url($business_id, 'full');
+                
+                // Generate WebP versions if supported
+                $webp_support = function_exists('imagewebp');
+                $featured_image_webp = null;
+                $featured_image_large_webp = null;
+                
+                if ($webp_support && $featured_image) {
+                    // Check if WebP version exists or can be generated
+                    $featured_image_webp = HSF_Image_Optimizer::get_webp_version($featured_image);
+                    $featured_image_large_webp = HSF_Image_Optimizer::get_webp_version($featured_image_large);
+                }
+                
+                // Generate responsive image sizes
+                $responsive_images = HSF_Image_Optimizer::generate_responsive_images($business_id);
+                
                 $rating = get_post_meta($business_id, 'rating', true);
                 $location = get_post_meta($business_id, 'location', true);
                 $company_type = get_post_meta($business_id, 'company_type', true);
@@ -268,13 +286,34 @@ function hsf_advanced_search() {
                     <?php if ($featured_image) : ?>
                         <div class="hbl-business-image">
                             <a href="<?php echo esc_url($permalink); ?>">
-                                <img src="<?php echo esc_url($featured_image); ?>" 
-                                     data-src="<?php echo esc_url($featured_image_large); ?>"
-                                     data-srcset="<?php echo esc_url($featured_image); ?> 300w, <?php echo esc_url($featured_image_large); ?> 600w"
-                                     data-sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                     alt="<?php echo esc_attr($title); ?>" 
-                                     loading="lazy"
-                                     class="hbl-lazy-image">
+                                <?php 
+                                // Use optimized picture element with WebP support
+                                if (!empty($responsive_images)) {
+                                    echo HSF_Image_Optimizer::generate_picture_element(
+                                        $responsive_images, 
+                                        esc_attr($title), 
+                                        'hbl-lazy-image'
+                                    );
+                                } else {
+                                    // Fallback to simple image with lazy loading
+                                    ?>
+                                    <img src="<?php echo esc_url($featured_image); ?>" 
+                                         data-src="<?php echo esc_url($featured_image_large); ?>"
+                                         data-srcset="<?php echo esc_url($featured_image); ?> 300w, <?php echo esc_url($featured_image_large); ?> 600w"
+                                         data-sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                         alt="<?php echo esc_attr($title); ?>" 
+                                         loading="lazy"
+                                         class="hbl-lazy-image">
+                                    <?php
+                                }
+                                ?>
+                            </a>
+                        </div>
+                    <?php else : ?>
+                        <!-- Skeleton loading for missing images -->
+                        <div class="hbl-business-image">
+                            <a href="<?php echo esc_url($permalink); ?>">
+                                <?php echo HSF_Image_Optimizer::generate_skeleton_html(); ?>
                             </a>
                         </div>
                     <?php endif; ?>
@@ -510,4 +549,203 @@ function hsf_advanced_filter_results() {
 
 add_action('wp_ajax_hsf_advanced_filter_results', 'hsf_advanced_filter_results');
 add_action('wp_ajax_nopriv_hsf_advanced_filter_results', 'hsf_advanced_filter_results');
+
+/**
+ * Image Optimization Helper Methods
+ */
+class HSF_Image_Optimizer {
+    
+    /**
+     * Get WebP version of an image if available
+     */
+    public static function get_webp_version($image_url) {
+        if (!$image_url) {
+            return null;
+        }
+        
+        // Check if WebP version exists
+        $webp_url = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $image_url);
+        
+        // Check if file exists
+        $webp_path = str_replace(site_url('/'), ABSPATH, $webp_url);
+        if (file_exists($webp_path)) {
+            return $webp_url;
+        }
+        
+        // Try to generate WebP version
+        return self::generate_webp_version($image_url);
+    }
+    
+    /**
+     * Generate WebP version of an image
+     */
+    public static function generate_webp_version($image_url) {
+        if (!function_exists('imagewebp')) {
+            return null;
+        }
+        
+        $image_path = str_replace(site_url('/'), ABSPATH, $image_url);
+        
+        if (!file_exists($image_path)) {
+            return null;
+        }
+        
+        $image_info = getimagesize($image_path);
+        if (!$image_info) {
+            return null;
+        }
+        
+        $mime_type = $image_info['mime'];
+        $width = $image_info[0];
+        $height = $image_info[1];
+        
+        // Create image resource based on type
+        switch ($mime_type) {
+            case 'image/jpeg':
+                $image = imagecreatefromjpeg($image_path);
+                break;
+            case 'image/png':
+                $image = imagecreatefrompng($image_path);
+                break;
+            default:
+                return null;
+        }
+        
+        if (!$image) {
+            return null;
+        }
+        
+        // Generate WebP path
+        $webp_path = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $image_path);
+        $webp_url = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $image_url);
+        
+        // Save WebP version
+        $quality = 85; // Good balance between quality and size
+        if (imagewebp($image, $webp_path, $quality)) {
+            imagedestroy($image);
+            return $webp_url;
+        }
+        
+        imagedestroy($image);
+        return null;
+    }
+    
+    /**
+     * Generate responsive image sizes for a business
+     */
+    public static function generate_responsive_images($business_id) {
+        $images = array();
+        
+        // Define responsive sizes
+        $sizes = array(
+            'thumbnail' => array(150, 150),
+            'small' => array(300, 200),
+            'medium' => array(600, 400),
+            'large' => array(900, 600),
+            'full' => array(1200, 800)
+        );
+        
+        foreach ($sizes as $size_name => $dimensions) {
+            $image_url = get_the_post_thumbnail_url($business_id, $size_name);
+            if ($image_url) {
+                $images[$size_name] = array(
+                    'url' => $image_url,
+                    'width' => $dimensions[0],
+                    'height' => $dimensions[1],
+                    'webp' => self::get_webp_version($image_url)
+                );
+            }
+        }
+        
+        return $images;
+    }
+    
+    /**
+     * Generate srcset attribute for responsive images
+     */
+    public static function generate_srcset($responsive_images) {
+        $srcset_parts = array();
+        
+        foreach ($responsive_images as $size => $image_data) {
+            if ($image_data['url']) {
+                $srcset_parts[] = $image_data['url'] . ' ' . $image_data['width'] . 'w';
+            }
+        }
+        
+        return implode(', ', $srcset_parts);
+    }
+    
+    /**
+     * Generate picture element with WebP support
+     */
+    public static function generate_picture_element($responsive_images, $alt_text, $class = '') {
+        if (empty($responsive_images)) {
+            return '';
+        }
+        
+        $fallback_url = reset($responsive_images)['url'];
+        $srcset = self::generate_srcset($responsive_images);
+        
+        // Generate WebP srcset
+        $webp_srcset_parts = array();
+        foreach ($responsive_images as $image_data) {
+            if ($image_data['webp']) {
+                $webp_srcset_parts[] = $image_data['webp'] . ' ' . $image_data['width'] . 'w';
+            }
+        }
+        $webp_srcset = implode(', ', $webp_srcset_parts);
+        
+        $picture_html = '<picture class="' . esc_attr($class) . '">';
+        
+        // WebP source if available
+        if (!empty($webp_srcset_parts)) {
+            $picture_html .= '<source srcset="' . esc_attr($webp_srcset) . '" type="image/webp">';
+        }
+        
+        // Fallback image
+        $picture_html .= '<img src="' . esc_url($fallback_url) . '" 
+                               srcset="' . esc_attr($srcset) . '" 
+                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
+                               alt="' . esc_attr($alt_text) . '" 
+                               loading="lazy" 
+                               class="hbl-lazy-image">';
+        
+        $picture_html .= '</picture>';
+        
+        return $picture_html;
+    }
+    
+    /**
+     * Generate skeleton loading HTML
+     */
+    public static function generate_skeleton_html() {
+        return '<div class="hbl-skeleton-image">
+                    <div class="hbl-skeleton-shimmer"></div>
+                </div>';
+    }
+    
+    /**
+     * Check if image exists and is accessible
+     */
+    public static function image_exists($image_url) {
+        if (!$image_url) {
+            return false;
+        }
+        
+        $image_path = str_replace(site_url('/'), ABSPATH, $image_url);
+        return file_exists($image_path);
+    }
+    
+    /**
+     * Get optimized image dimensions
+     */
+    public static function get_optimized_dimensions($original_width, $original_height, $max_width, $max_height) {
+        $ratio = min($max_width / $original_width, $max_height / $original_height);
+        
+        return array(
+            'width' => round($original_width * $ratio),
+            'height' => round($original_height * $ratio)
+        );
+    }
+}
 ?>
