@@ -1,2 +1,291 @@
+# Happy Search & Filter Plugin - .gitignore
 
+# Development and Planning Files
+.todo.md
+*.todo
+TODO.md
+CHANGELOG.md
+NOTES.md
+
+# macOS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+*.sublime-project
+*.sublime-workspace
+
+# Node.js (if using build tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+package-lock.json
+yarn.lock
+
+# Build and Distribution
+/dist/
+/build/
+*.zip
+*.tar.gz
+*.rar
+
+# Logs
+*.log
+logs/
+debug.log
+error_log
+
+# Temporary Files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+
+# Environment Files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.sql
+*.sqlite
+*.db
+
+# Cache and Temporary WordPress Files
+wp-content/cache/
+wp-content/uploads/cache/
+wp-content/advanced-cache.php
+wp-content/wp-cache-config.php
+wp-content/backup-db/
+wp-content/backups/
+wp-content/blogs.dir/
+wp-content/upgrade/
+wp-content/uploads/
+wp-content/mu-plugins/
+wp-content/wp-config.php
+
+# WordPress Core (if in same repo)
+wp-admin/
+wp-includes/
+wp-content/plugins/
+wp-content/themes/
+wp-content/mu-plugins/
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/backup-db/
+wp-content/backups/
+wp-content/cache/
+wp-content/blogs.dir/
+wp-content/upgrade/
+wp-content/uploads/
+wp-content/mu-plugins/
+wp-content/wp-config.php
+
+# Plugin Specific
+# Uncomment if you have these directories
+# /vendor/
+# /composer.lock
+# /package.json
+# /package-lock.json
+
+# Testing
+/phpunit.xml
+/tests/
+/coverage/
+.phpunit.result.cache
+
+# Documentation (if auto-generated)
+/docs/
+*.md
+!README.md
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# WordPress Debug
+debug.log
+error_log
+wp-content/debug.log
+wp-content/error_log
+
+# Local Development
+/local/
+/localhost/
+/development/
+/staging/
+
+# Security
+wp-config.php
+.htaccess
+robots.txt
+
+# Performance
+*.cache
+cache/
+tmp/
+temp/
+
+# Backup and Archive
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# IDE Specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+.idea/shelf/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Composer (if using)
+/vendor/
+composer.lock
+composer.phar
+
+# NPM/Yarn (if using)
+node_modules/
+package-lock.json
+yarn.lock
+.npm
+.yarn-integrity
+
+# Build Tools
+/dist/
+/build/
+/public/
+.sass-cache/
+*.css.map
+*.js.map
+
+# Testing
+/coverage/
+.nyc_output/
+.phpunit.result.cache
+
+# Environment
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port

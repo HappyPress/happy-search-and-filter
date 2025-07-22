@@ -93,6 +93,11 @@ if ( ! class_exists( 'Happy_Search_Filter' ) ) {
             require_once HSF_PLUGIN_DIR . 'includes/search-shortcode.php';
             require_once HSF_PLUGIN_DIR . 'includes/ajax-handler.php';
             require_once HSF_PLUGIN_DIR . 'includes/saved-filters.php';
+            
+            // Include advanced search block for page-based directory
+            if (function_exists('register_block_type')) {
+                require_once HSF_PLUGIN_DIR . 'includes/advanced-search-block.php';
+            }
         }
 
         /**

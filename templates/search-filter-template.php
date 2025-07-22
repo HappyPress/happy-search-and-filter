@@ -43,20 +43,20 @@ try {
     }
     
     // Get company types
-    if ($attributes['showCompanyTypeFilter'] && function_exists('hbl_get_meta_values')) {
-        $company_types = hbl_get_meta_values('company_type', 'business_listing');
+    if ($attributes['showCompanyTypeFilter'] && function_exists('hsf_get_meta_values')) {
+        $company_types = hsf_get_meta_values('company_type', 'business_listing');
         if (!is_array($company_types)) $company_types = array();
     }
     
     // Get locations
-    if ($attributes['showLocationFilter'] && function_exists('hbl_get_meta_values')) {
-        $locations = hbl_get_meta_values('location', 'business_listing');
+    if ($attributes['showLocationFilter'] && function_exists('hsf_get_meta_values')) {
+        $locations = hsf_get_meta_values('location', 'business_listing');
         if (!is_array($locations)) $locations = array();
     }
     
     // Get services
-    if ($attributes['showServiceFilter'] && function_exists('hbl_get_meta_values')) {
-        $services = hbl_get_meta_values('services', 'business_listing', true);
+    if ($attributes['showServiceFilter'] && function_exists('hsf_get_meta_values')) {
+        $services = hsf_get_meta_values('services', 'business_listing', true);
         if (!is_array($services)) $services = array();
     }
     
@@ -102,30 +102,19 @@ $data_attrs .= ' data-saved-filters="' . ($attributes['enableSavedFilters'] ? 't
     <?php if (!empty($attributes['title'])) : ?>
         <h3 class="hbl-filter-title"><?php echo esc_html($attributes['title']); ?></h3>
     <?php endif; ?>
+    
     <form id="hsf-search-form" class="hbl-advanced-filter-form" method="post" action="#">
         <div class="hbl-filter-fields">
             <?php if ($attributes['showKeywordSearch']) : ?>
                 <div class="hbl-filter-field hbl-filter-search">
-                    <label for="hsf-filter-search"><?php _e('Search', 'happy-search-and-filter'); ?></label>
+                    <label for="hsf-filter-search"><?php _e('SEARCH', 'happy-search-and-filter'); ?></label>
                     <input type="text" name="search" id="hsf-filter-search" placeholder="<?php esc_attr_e('Search businesses...', 'happy-search-and-filter'); ?>" value="<?php echo esc_attr($current_search); ?>">
                 </div>
             <?php endif; ?>
-            <?php if ($attributes['showCategoryFilter'] && !empty($categories)) : ?>
-                <div class="hbl-filter-field hbl-filter-category">
-                    <label for="hsf-filter-category"><?php _e('Category', 'happy-search-and-filter'); ?></label>
-                    <select name="category" id="hsf-filter-category">
-                        <option value=""><?php _e('All Categories', 'happy-search-and-filter'); ?></option>
-                        <?php foreach ($categories as $category) : ?>
-                            <option value="<?php echo esc_attr($category->slug); ?>" <?php selected($current_category, $category->slug); ?>>
-                                <?php echo esc_html($category->name); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            <?php endif; ?>
+            
             <?php if ($attributes['showLocationFilter'] && !empty($locations)) : ?>
                 <div class="hbl-filter-field hbl-filter-location">
-                    <label for="hsf-filter-location"><?php _e('Location', 'happy-search-and-filter'); ?></label>
+                    <label for="hsf-filter-location"><?php _e('LOCATION', 'happy-search-and-filter'); ?></label>
                     <select name="location" id="hsf-filter-location">
                         <option value=""><?php _e('All Locations', 'happy-search-and-filter'); ?></option>
                         <?php foreach ($locations as $location) : ?>
@@ -136,9 +125,10 @@ $data_attrs .= ' data-saved-filters="' . ($attributes['enableSavedFilters'] ? 't
                     </select>
                 </div>
             <?php endif; ?>
+            
             <?php if ($attributes['showCompanyTypeFilter'] && !empty($company_types)) : ?>
                 <div class="hbl-filter-field hbl-filter-company-type">
-                    <label for="hsf-filter-company-type"><?php _e('Company Type', 'happy-search-and-filter'); ?></label>
+                    <label for="hsf-filter-company-type"><?php _e('COMPANY TYPE', 'happy-search-and-filter'); ?></label>
                     <select name="company_type" id="hsf-filter-company-type">
                         <option value=""><?php _e('All Types', 'happy-search-and-filter'); ?></option>
                         <?php foreach ($company_types as $type) : ?>
@@ -149,9 +139,42 @@ $data_attrs .= ' data-saved-filters="' . ($attributes['enableSavedFilters'] ? 't
                     </select>
                 </div>
             <?php endif; ?>
+            
+            <?php if ($attributes['showCategoryFilter'] && !empty($categories)) : ?>
+                <div class="hbl-filter-field hbl-filter-category">
+                    <label for="hsf-filter-category"><?php _e('CATEGORY', 'happy-search-and-filter'); ?></label>
+                    <select name="category" id="hsf-filter-category">
+                        <option value=""><?php _e('All Categories', 'happy-search-and-filter'); ?></option>
+                        <?php foreach ($categories as $category) : ?>
+                            <option value="<?php echo esc_attr($category->slug); ?>" <?php selected($current_category, $category->slug); ?>>
+                                <?php echo esc_html($category->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($attributes['showSorting']) : ?>
+                <div class="hbl-filter-field hbl-filter-sorting">
+                    <label><?php _e('SORT BY', 'happy-search-and-filter'); ?></label>
+                    <div class="hbl-sorting-selects">
+                        <select name="orderby" id="hsf-filter-orderby">
+                            <option value="date" <?php selected($current_orderby, 'date'); ?>><?php _e('Date', 'happy-search-and-filter'); ?></option>
+                            <option value="title" <?php selected($current_orderby, 'title'); ?>><?php _e('Name', 'happy-search-and-filter'); ?></option>
+                            <option value="rating" <?php selected($current_orderby, 'rating'); ?>><?php _e('Rating', 'happy-search-and-filter'); ?></option>
+                            <option value="popularity" <?php selected($current_orderby, 'popularity'); ?>><?php _e('Popularity', 'happy-search-and-filter'); ?></option>
+                        </select>
+                        <select name="order" id="hsf-filter-order">
+                            <option value="DESC" <?php selected($current_order, 'DESC'); ?>><?php _e('Descending', 'happy-search-and-filter'); ?></option>
+                            <option value="ASC" <?php selected($current_order, 'ASC'); ?>><?php _e('Ascending', 'happy-search-and-filter'); ?></option>
+                        </select>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
             <?php if ($attributes['showRatingFilter']) : ?>
                 <div class="hbl-filter-field hbl-filter-rating">
-                    <label for="hsf-filter-rating"><?php _e('Minimum Rating', 'happy-search-and-filter'); ?></label>
+                    <label for="hsf-filter-rating"><?php _e('RATING', 'happy-search-and-filter'); ?></label>
                     <select name="rating_min" id="hsf-filter-rating">
                         <option value=""><?php _e('Any Rating', 'happy-search-and-filter'); ?></option>
                         <option value="5" <?php selected($current_rating, 5); ?>><?php _e('5 Stars', 'happy-search-and-filter'); ?></option>
@@ -162,9 +185,10 @@ $data_attrs .= ' data-saved-filters="' . ($attributes['enableSavedFilters'] ? 't
                     </select>
                 </div>
             <?php endif; ?>
+            
             <?php if ($attributes['showPriceRangeFilter']) : ?>
                 <div class="hbl-filter-field hbl-filter-price-range">
-                    <label for="hsf-filter-price-range"><?php _e('Price Range', 'happy-search-and-filter'); ?></label>
+                    <label for="hsf-filter-price-range"><?php _e('PRICE RANGE', 'happy-search-and-filter'); ?></label>
                     <select name="price_range" id="hsf-filter-price-range">
                         <option value=""><?php _e('Any Price', 'happy-search-and-filter'); ?></option>
                         <?php foreach ($price_ranges as $key => $label) : ?>
@@ -175,106 +199,38 @@ $data_attrs .= ' data-saved-filters="' . ($attributes['enableSavedFilters'] ? 't
                     </select>
                 </div>
             <?php endif; ?>
+            
             <?php if ($attributes['showVerifiedFilter']) : ?>
                 <div class="hbl-filter-field hbl-filter-verified">
                     <label for="hsf-filter-verified" class="hbl-checkbox-label">
                         <input type="checkbox" name="verified" id="hsf-filter-verified" value="1" <?php checked($current_verified); ?>>
-                        <?php _e('Verified Businesses Only', 'happy-search-and-filter'); ?>
+                        <?php _e('Verified Only', 'happy-search-and-filter'); ?>
                     </label>
-                </div>
-            <?php endif; ?>
-            <?php if ($attributes['showDateRangeFilter']) : ?>
-                <div class="hbl-filter-field hbl-filter-date-range">
-                    <label><?php _e('Date Range', 'happy-search-and-filter'); ?></label>
-                    <div class="hbl-date-range-inputs">
-                        <input type="text" name="date_from" id="hsf-filter-date-from" class="hbl-datepicker" placeholder="<?php esc_attr_e('From', 'happy-search-and-filter'); ?>" value="<?php echo esc_attr($current_date_from); ?>">
-                        <span class="hbl-date-separator">-</span>
-                        <input type="text" name="date_to" id="hsf-filter-date-to" class="hbl-datepicker" placeholder="<?php esc_attr_e('To', 'happy-search-and-filter'); ?>" value="<?php echo esc_attr($current_date_to); ?>">
-                    </div>
-                </div>
-            <?php endif; ?>
-            <?php if ($attributes['showTagsFilter'] && !empty($tags)) : ?>
-                <div class="hbl-filter-field hbl-filter-tags">
-                    <label><?php _e('Tags', 'happy-search-and-filter'); ?></label>
-                    <div class="hbl-checkbox-group">
-                        <?php foreach ($tags as $tag) : ?>
-                            <label class="hbl-checkbox-label">
-                                <input type="checkbox" name="tags[]" value="<?php echo esc_attr($tag->slug); ?>" <?php checked(in_array($tag->slug, $current_tags)); ?>>
-                                <?php echo esc_html($tag->name); ?>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-            <?php if ($attributes['showServiceFilter'] && !empty($services)) : ?>
-                <div class="hbl-filter-field hbl-filter-services">
-                    <label><?php _e('Services', 'happy-search-and-filter'); ?></label>
-                    <div class="hbl-checkbox-group">
-                        <?php foreach ($services as $service) : ?>
-                            <label class="hbl-checkbox-label">
-                                <input type="checkbox" name="services[]" value="<?php echo esc_attr($service); ?>" <?php checked(in_array($service, $current_services)); ?>>
-                                <?php echo esc_html($service); ?>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-            <?php if ($attributes['showDistanceFilter']) : ?>
-                <div class="hbl-filter-field hbl-filter-distance">
-                    <label><?php _e('Distance', 'happy-search-and-filter'); ?></label>
-                    <div class="hbl-distance-inputs">
-                        <input type="text" id="hsf-filter-location-search" placeholder="<?php esc_attr_e('Enter your location', 'happy-search-and-filter'); ?>" class="hbl-location-search">
-                        <div class="hbl-distance-selects">
-                            <select name="distance" id="hsf-filter-distance">
-                                <option value=""><?php _e('Select distance', 'happy-search-and-filter'); ?></option>
-                                <?php foreach ($distance_options as $distance) : ?>
-                                    <option value="<?php echo esc_attr($distance); ?>" <?php selected($current_distance, $distance); ?>>
-                                        <?php echo esc_html($distance); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <select name="distance_unit" id="hsf-filter-distance-unit">
-                                <option value="km" <?php selected($current_distance_unit, 'km'); ?>><?php _e('km', 'happy-search-and-filter'); ?></option>
-                                <option value="mi" <?php selected($current_distance_unit, 'mi'); ?>><?php _e('miles', 'happy-search-and-filter'); ?></option>
-                            </select>
-                        </div>
-                        <input type="hidden" name="latitude" id="hsf-filter-latitude" value="<?php echo esc_attr($current_latitude); ?>">
-                        <input type="hidden" name="longitude" id="hsf-filter-longitude" value="<?php echo esc_attr($current_longitude); ?>">
-                    </div>
-                </div>
-            <?php endif; ?>
-            <?php if ($attributes['showOpenNowFilter']) : ?>
-                <div class="hbl-filter-field hbl-filter-open-now">
-                    <label for="hsf-filter-open-now" class="hbl-checkbox-label">
-                        <input type="checkbox" name="open_now" id="hsf-filter-open-now" value="1" <?php checked($current_open_now); ?>>
-                        <?php _e('Open Now', 'happy-search-and-filter'); ?>
-                    </label>
-                </div>
-            <?php endif; ?>
-            <?php if ($attributes['showSorting']) : ?>
-                <div class="hbl-filter-field hbl-filter-sorting">
-                    <label for="hsf-filter-orderby"><?php _e('Sort By', 'happy-search-and-filter'); ?></label>
-                    <div class="hbl-sorting-selects">
-                        <select name="orderby" id="hsf-filter-orderby">
-                            <option value="date" <?php selected($current_orderby, 'date'); ?>><?php _e('Date', 'happy-search-and-filter'); ?></option>
-                            <option value="title" <?php selected($current_orderby, 'title'); ?>><?php _e('Name', 'happy-search-and-filter'); ?></option>
-                            <option value="rating" <?php selected($current_orderby, 'rating'); ?>><?php _e('Rating', 'happy-search-and-filter'); ?></option>
-                            <option value="popularity" <?php selected($current_orderby, 'popularity'); ?>><?php _e('Popularity', 'happy-search-and-filter'); ?></option>
-                            <option value="price" <?php selected($current_orderby, 'price'); ?>><?php _e('Price', 'happy-search-and-filter'); ?></option>
-                        </select>
-                        <select name="order" id="hsf-filter-order">
-                            <option value="ASC" <?php selected($current_order, 'ASC'); ?>><?php _e('Ascending', 'happy-search-and-filter'); ?></option>
-                            <option value="DESC" <?php selected($current_order, 'DESC'); ?>><?php _e('Descending', 'happy-search-and-filter'); ?></option>
-                        </select>
-                    </div>
                 </div>
             <?php endif; ?>
         </div>
+        
         <div class="hbl-filter-actions">
-            <button type="submit" class="hbl-submit-button"><?php _e('Search', 'happy-search-and-filter'); ?></button>
-            <button type="button" class="hbl-reset-button"><?php _e('Reset', 'happy-search-and-filter'); ?></button>
+            <button type="submit" class="hbl-submit-button">
+                <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <?php _e('Search', 'happy-search-and-filter'); ?>
+            </button>
+            <button type="button" class="hbl-reset-button">
+                <svg class="hbl-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                    <path d="M21 3v5h-5"></path>
+                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                    <path d="M3 21v-5h5"></path>
+                </svg>
+                <?php _e('Reset', 'happy-search-and-filter'); ?>
+            </button>
         </div>
+        
         <input type="hidden" name="results_per_page" value="<?php echo esc_attr($attributes['resultsPerPage']); ?>">
     </form>
-    <div id="hsf-search-results"></div>
+    
+    <div id="hsf-search-results" class="hbl-search-results"></div>
 </div>
