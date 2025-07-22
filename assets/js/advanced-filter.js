@@ -1084,7 +1084,6 @@
         getFormData() {
             const formData = {};
             const formArray = this.form.serializeArray();
-            
             formArray.forEach(item => {
                 if (item.value) {
                     if (formData[item.name]) {
@@ -1103,12 +1102,10 @@
             this.multiSelectElements.forEach(fieldName => {
                 const $select = this.form.find(`[name="${fieldName}"]`);
                 const selectedValues = $select.val() || [];
-                
                 if (selectedValues.length > 0) {
                     formData[fieldName] = selectedValues;
                 }
             });
-            
             return formData;
         }
 
@@ -1116,13 +1113,9 @@
         handleSuccess(response, isNewSearch) {
             if (response.success) {
                 if (isNewSearch) {
-                    // Replace results for new search
                     this.resultsContainer.html(response.data.html);
-                    
-                    // Collect export data
-                    this.collectExportData(response.data);
+                    this.collectExportData(response.data); // Collect export data
                 } else {
-                    // Append results for pagination
                     this.appendResults(response.data.html);
                 }
                 
@@ -1686,7 +1679,7 @@
         }
 
         setupReset() {
-            $(config.resetSelector).on('click', (e) => {
+            this.form.find('.hbl-reset-button').on('click', (e) => {
                 e.preventDefault();
                 this.handleReset();
             });
@@ -2157,35 +2150,53 @@
         }
 
         handleReset() {
-            // Reset form
+            // Clear loading state immediately
+            this.setLoading(false);
+            
+            // Reset form fields
             this.form[0].reset();
             
-            // Clear results
-            this.resultsContainer.empty();
-            
-            // Clear URL parameters
-            this.clearURL();
-            
-            // Clear filter state
-            this.clearFilterState();
+            // Clear multi-select chips
+            this.selectedChips.forEach((chips, fieldName) => {
+                chips.forEach(chip => chip.remove());
+            });
+            this.selectedChips.clear();
             
             // Clear validation errors
             this.clearValidationErrors();
             
-            // Reset pagination
-            this.currentPage = 1;
-            this.totalPages = 1;
+            // Clear filter state
+            this.clearFilterState();
             
-            // Trigger change events to update any dependent fields
-            this.form.find('input, select').trigger('change');
+            // Reset URL
+            this.clearURL();
             
-            // Focus on search input
-            this.form.find('input[type="text"]').first().focus();
+            // Reset analytics display
+            if (this.analyticsData) {
+                this.updateAnalyticsDisplay(this.analyticsData);
+            }
             
-            // Load all businesses after reset
+            // Reset preset buttons
+            this.presetActive = null;
+            this.form.find('.hbl-preset-button').removeClass('active');
+            
+            // Clear search suggestions and history
+            this.hideSearchSuggestions();
+            
+            // Reset form to initial state
+            this.form.removeClass('loading');
+            this.form.find('.hbl-submit-button, .hbl-reset-button').prop('disabled', false);
+            
+            // Load initial results after a short delay
             setTimeout(() => {
                 this.handleSubmit(1);
             }, 100);
+            
+            // Show notification
+            this.showNotification('Filters have been reset', 'info');
+            
+            // Trigger custom event
+            $(document).trigger('hsf:resetComplete');
         }
 
         clearValidationErrors() {
@@ -2194,80 +2205,6 @@
             this.form.find('.hbl-field-error').removeClass('hbl-field-error');
             this.hideFormValidationError();
             this.validationErrors = {};
-        }
-
-        getFormData() {
-            const formData = {};
-            const formArray = this.form.serializeArray();
-            
-            formArray.forEach(item => {
-                if (item.value) {
-                    if (formData[item.name]) {
-                        if (Array.isArray(formData[item.name])) {
-                            formData[item.name].push(item.value);
-                        } else {
-                            formData[item.name] = [formData[item.name], item.value];
-                        }
-                    } else {
-                        formData[item.name] = item.value;
-                    }
-                }
-            });
-            
-            // Handle multi-select arrays properly
-            this.multiSelectElements.forEach(fieldName => {
-                const $select = this.form.find(`[name="${fieldName}"]`);
-                const selectedValues = $select.val() || [];
-                
-                if (selectedValues.length > 0) {
-                    formData[fieldName] = selectedValues;
-                }
-            });
-            
-            return formData;
-        }
-
-        handleSuccess(response, isNewSearch) {
-            if (response.success) {
-                if (isNewSearch) {
-                    // Replace results for new search
-                    this.resultsContainer.html(response.data.html);
-                    
-                    // Collect export data
-                    this.collectExportData(response.data);
-                } else {
-                    // Append results for pagination
-                    this.appendResults(response.data.html);
-                }
-                
-                // Setup lazy loading for new content
-                this.setupLazyElements();
-                
-                // Update pagination info
-                this.currentPage = response.data.current_page || 1;
-                this.totalPages = response.data.total_pages || 1;
-                
-                // Update ARIA label
-                this.resultsContainer.attr('aria-label', `Found ${response.data.count || 0} results`);
-                
-                // Update pagination controls
-                this.updatePaginationControls();
-                
-                // Show cache status if available
-                if (response.data.cached !== undefined) {
-                    this.showCacheStatus(response.data.cached, response.data.cache_timestamp);
-                }
-                
-                // Scroll to top for new searches
-                if (isNewSearch) {
-                    this.scrollToResults();
-                }
-                
-                // Trigger custom event
-                $(document).trigger('hsf:searchComplete', [response.data]);
-            } else {
-                this.showError(response.data || 'Search failed. Please try again.');
-            }
         }
 
         showCacheStatus(cached, timestamp) {
@@ -2378,32 +2315,29 @@
             this.isLoading = loading;
             
             if (loading) {
-                this.form.addClass(config.loadingClass);
-                this.form.find('button[type="submit"]').prop('disabled', true);
-                
-                // Show loading indicator in results
-                if (this.currentPage > 1) {
-                    this.showLoadingIndicator();
-                }
+                this.form.addClass('loading');
+                this.form.find('.hbl-submit-button, .hbl-reset-button').prop('disabled', true);
+                this.showLoadingIndicator();
             } else {
-                this.form.removeClass(config.loadingClass);
-                this.form.find('button[type="submit"]').prop('disabled', false);
+                this.form.removeClass('loading');
+                this.form.find('.hbl-submit-button, .hbl-reset-button').prop('disabled', false);
                 this.hideLoadingIndicator();
+                
+                // Ensure all loading spinners are removed
+                this.form.find('.hbl-loading-spinner').remove();
+                this.form.find('.hbl-button-loading').removeClass('hbl-button-loading');
             }
         }
 
         showLoadingIndicator() {
-            const loadingHtml = `
-                <div class="hbl-loading-indicator">
-                    <div class="hbl-loading-spinner"></div>
-                    <p>Loading more results...</p>
-                </div>
-            `;
-            
-            // Add loading indicator after the grid
-            const existingGrid = this.resultsContainer.find('.hbl-results-grid');
-            if (existingGrid.length) {
-                existingGrid.after(loadingHtml);
+            if (!this.resultsContainer.find('.hbl-loading-indicator').length) {
+                const loadingHtml = `
+                    <div class="hbl-loading-indicator">
+                        <div class="hbl-loading-spinner"></div>
+                        <p>${config.strings.loading}</p>
+                    </div>
+                `;
+                this.resultsContainer.html(loadingHtml);
             }
         }
 

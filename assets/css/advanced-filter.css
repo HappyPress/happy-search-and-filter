@@ -2881,12 +2881,14 @@
     display: flex;
     gap: var(--hsf-spacing-sm);
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .hbl-sorting-primary,
 .hbl-sorting-secondary,
 .hbl-sorting-tertiary {
     flex: 1;
+    min-width: 120px;
 }
 
 .hbl-sorting-primary select,
@@ -2898,7 +2900,12 @@
     border-radius: var(--hsf-border-radius);
     background: white;
     font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--hsf-text-color);
     transition: var(--hsf-transition);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .hbl-sorting-primary select:focus,
@@ -2906,7 +2913,17 @@
 .hbl-sorting-tertiary select:focus {
     outline: none;
     border-color: var(--hsf-primary-color);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Ensure select options are readable */
+.hbl-sorting-primary select option,
+.hbl-sorting-secondary select option,
+.hbl-sorting-tertiary select option {
+    padding: var(--hsf-spacing-sm);
+    font-size: 0.875rem;
+    background: white;
+    color: var(--hsf-text-color);
 }
 
 /* Filter presets styles */
