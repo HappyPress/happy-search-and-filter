@@ -756,12 +756,15 @@
     pointer-events: none;
 }
 
-.hbl-advanced-filter-form.loading .hbl-submit-button {
+.hbl-advanced-filter-form.loading .hbl-submit-button,
+.hbl-advanced-filter-form.loading .hbl-reset-button {
     position: relative;
     color: transparent;
+    pointer-events: none;
 }
 
-.hbl-advanced-filter-form.loading .hbl-submit-button::after {
+.hbl-advanced-filter-form.loading .hbl-submit-button::after,
+.hbl-advanced-filter-form.loading .hbl-reset-button::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -770,9 +773,38 @@
     height: 1rem;
     margin: -0.5rem 0 0 -0.5rem;
     border: 2px solid transparent;
-    border-top-color: white;
+    border-top-color: currentColor;
     border-radius: 50%;
     animation: hsf-spin 1s linear infinite;
+    z-index: 10;
+}
+
+/* Individual button loading states */
+.hbl-button-loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.hbl-button-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1rem;
+    height: 1rem;
+    margin: -0.5rem 0 0 -0.5rem;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: hsf-spin 1s linear infinite;
+    z-index: 10;
+}
+
+/* Ensure loading spinners are removed when not needed */
+.hbl-submit-button:not(.hbl-button-loading):not(.loading)::after,
+.hbl-reset-button:not(.hbl-button-loading):not(.loading)::after {
+    display: none;
 }
 
 /* Enhanced focus states for accessibility */
@@ -2810,16 +2842,55 @@
     background: white;
     font-size: 0.875rem;
     transition: var(--hsf-transition);
+    /* Ensure dropdown shows as a list */
+    max-height: 200px;
+    overflow-y: auto;
+    /* Remove default browser styling */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
 .hbl-multi-select:focus {
     outline: none;
     border-color: var(--hsf-primary-color);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .hbl-multi-select option {
-    padding: var(--hsf-spacing-xs);
+    padding: var(--hsf-spacing-sm);
+    font-size: 0.875rem;
+    background: white;
+    color: var(--hsf-text-color);
+    border-bottom: 1px solid var(--hsf-border-color);
+    cursor: pointer;
+}
+
+.hbl-multi-select option:checked {
+    background: var(--hsf-primary-color);
+    color: white;
+}
+
+.hbl-multi-select option:hover {
+    background: var(--hsf-background-alt);
+}
+
+/* Ensure proper dropdown behavior */
+.hbl-multi-select[size] {
+    /* Force dropdown to show as list when size is set */
+    height: auto;
+    max-height: 200px;
+}
+
+/* Firefox specific styling */
+.hbl-multi-select:-moz-focusring {
+    color: transparent;
+    text-shadow: 0 0 0 var(--hsf-text-color);
+}
+
+/* Webkit browsers specific styling */
+.hbl-multi-select::-webkit-listbox {
+    max-height: 200px;
 }
 
 /* Chips display styles */

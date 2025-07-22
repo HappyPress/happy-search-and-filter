@@ -126,13 +126,27 @@
         }
     };
 
+    // Ensure we have the right AJAX configuration
+    const ajaxConfig = window.hsf_ajax || window.hsfAdvancedFilter || {
+        ajax_url: '/wp-admin/admin-ajax.php',
+        nonce: '',
+        strings: {
+            searching: 'Searching...',
+            no_results: 'No results found.',
+            error: 'An error occurred. Please try again.',
+            loading: 'Loading...',
+            load_more: 'Load More',
+            no_more_results: 'No more results to load.'
+        }
+    };
+
+    // Debug logging
+    console.log('HSF: Initializing with config:', ajaxConfig);
+
     class HSFFilter {
         constructor() {
             this.form = $(config.formSelector);
             this.resultsContainer = $(config.resultsContainer);
-            this.autoSubmitTimer = null;
-            this.searchDebounceTimer = null;
-            this.searchSuggestionTimer = null;
             this.isLoading = false;
             this.currentPage = 1;
             this.totalPages = 1;
@@ -141,12 +155,12 @@
             this.filterState = {};
             this.isRestoringState = false;
             this.validationErrors = {};
-            this.lazyLoadObserver = null;
-            this.lazyLoadElements = new Set();
             
             // Enhanced debouncing properties
+            this.searchDebounceTimer = null;
+            this.searchSuggestionTimer = null;
             this.lastSearchTerm = '';
-            this.searchHistory = this.loadSearchHistory();
+            this.searchHistory = [];
             this.searchSuggestions = [];
             this.isSearching = false;
             this.pendingSearch = null;
@@ -169,26 +183,61 @@
             this.presetActive = null;
             this.multiSelectElements = new Set();
             
+            // Validate configuration
+            if (!this.form.length) {
+                console.error('HSF: Form not found with selector:', config.formSelector);
+                return;
+            }
+            
+            if (!this.resultsContainer.length) {
+                console.error('HSF: Results container not found with selector:', config.resultsContainer);
+                return;
+            }
+            
+            console.log('HSF: Successfully initialized');
             this.init();
         }
 
         init() {
-            this.loadFilterState();
             this.bindEvents();
+            this.setupLazyLoading();
+            this.setupValidation();
             this.setupAutoSubmit();
-            this.setupEnhancedDebouncing(); // Add enhanced debouncing
-            this.setupReset();
-            this.setupAccessibility();
+            this.setupEnhancedDebouncing();
             this.setupPagination();
             this.setupInfiniteScroll();
-            this.setupValidation();
-            this.setupLazyLoading();
-            this.setupAdvancedImageOptimization(); // Add advanced image optimization
-            this.setupAdvancedFeatures(); // Add advanced features
-            this.restoreFilterState();
+            this.setupReset();
+            this.setupAccessibility();
+            this.setupSavedFilters();
+            this.setupAdvancedImageOptimization();
+            this.setupAdvancedFeatures();
             
-            // Load all businesses by default if no filters are applied
+            // Load initial results
             this.loadInitialResults();
+            
+            // Setup safety mechanism for stuck loading states
+            this.setupLoadingStateSafety();
+        }
+
+        // Safety mechanism to prevent stuck loading states
+        setupLoadingStateSafety() {
+            // Clear any stuck loading states on page load
+            setTimeout(() => {
+                this.clearAllLoadingStates();
+            }, 1000);
+            
+            // Monitor for stuck loading states
+            setInterval(() => {
+                if (this.isLoading && !this.form.find('.hbl-loading-indicator').length) {
+                    console.warn('HSF: Detected stuck loading state, clearing...');
+                    this.clearAllLoadingStates();
+                }
+            }, 5000); // Check every 5 seconds
+            
+            // Clear loading states on page unload
+            $(window).on('beforeunload', () => {
+                this.clearAllLoadingStates();
+            });
         }
 
         loadInitialResults() {
@@ -2095,38 +2144,47 @@
         }
 
         handleSubmit(page = 1) {
+            // Prevent multiple submissions
             if (this.isLoading) {
-                return Promise.reject(new Error('Already loading'));
+                console.log('HSF: Already loading, ignoring submit request');
+                return;
             }
-
-            this.currentPage = page;
+            
+            console.log('HSF: Starting submit for page:', page);
+            
+            // Set loading state
             this.setLoading(true);
-            this.updateURL();
-
+            
+            // Get form data
             const formData = this.getFormData();
+            formData.action = 'hsf_advanced_search';
+            formData.nonce = ajaxConfig.nonce;
             formData.paged = page;
             
-            return new Promise((resolve, reject) => {
-                $.ajax({
-                    url: hsfAdvancedFilter.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'hsf_advanced_search',
-                        nonce: hsfAdvancedFilter.nonce,
-                        ...formData
-                    },
-                    success: (response) => {
-                        this.handleSuccess(response, page === 1);
-                        resolve(response);
-                    },
-                    error: (xhr, status, error) => {
-                        this.handleError(xhr, status, error);
-                        reject(error);
-                    },
-                    complete: () => {
-                        this.setLoading(false);
-                    }
-                });
+            console.log('HSF: Form data:', formData);
+            
+            // Make AJAX request
+            $.ajax({
+                url: ajaxConfig.ajax_url,
+                type: 'POST',
+                data: formData,
+                timeout: 30000, // 30 second timeout
+                beforeSend: () => {
+                    console.log('HSF: AJAX request started');
+                },
+                success: (response) => {
+                    console.log('HSF: AJAX success:', response);
+                    this.handleSuccess(response, page === 1);
+                },
+                error: (xhr, status, error) => {
+                    console.error('HSF: AJAX error:', { xhr, status, error });
+                    this.handleError(xhr, status, error);
+                },
+                complete: () => {
+                    console.log('HSF: AJAX request completed');
+                    // Always clear loading state
+                    this.setLoading(false);
+                }
             });
         }
 
@@ -2150,8 +2208,8 @@
         }
 
         handleReset() {
-            // Clear loading state immediately
-            this.setLoading(false);
+            // Clear all loading states immediately
+            this.clearAllLoadingStates();
             
             // Reset form fields
             this.form[0].reset();
@@ -2276,30 +2334,27 @@
         }
 
         handleError(xhr, status, error) {
-            console.error('HSF Search Error:', error);
+            console.error('HSF Error:', { xhr, status, error });
             
-            // Check if it's a validation error response
-            if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.validation_errors) {
-                this.showServerValidationErrors(xhr.responseJSON.data.validation_errors);
-            } else {
-                this.showError('An error occurred while searching. Please try again.');
+            // Clear loading state
+            this.setLoading(false);
+            
+            let errorMessage = 'An error occurred while processing your request.';
+            
+            if (xhr.responseJSON && xhr.responseJSON.data) {
+                errorMessage = xhr.responseJSON.data;
+            } else if (xhr.status === 0) {
+                errorMessage = 'Network error. Please check your connection.';
+            } else if (xhr.status === 403) {
+                errorMessage = 'Access denied. Please refresh the page and try again.';
+            } else if (xhr.status === 500) {
+                errorMessage = 'Server error. Please try again later.';
             }
-        }
-
-        showServerValidationErrors(validationErrors) {
-            // Clear existing validation errors
-            this.clearValidationErrors();
             
-            // Show server validation errors
-            Object.keys(validationErrors).forEach(fieldName => {
-                const field = this.form.find(`[name="${fieldName}"]`);
-                if (field.length) {
-                    this.showFieldValidation(field[0], false, validationErrors[fieldName]);
-                }
-            });
+            this.showError(errorMessage);
             
-            // Show form-level error message
-            this.showFormValidationError('Please correct the validation errors above before submitting.');
+            // Trigger custom event
+            $(document).trigger('hsf:searchError', [errorMessage]);
         }
 
         showError(message) {
@@ -2312,20 +2367,33 @@
         }
 
         setLoading(loading) {
+            console.log('HSF: Setting loading state:', loading, 'Current state:', this.isLoading);
+            
             this.isLoading = loading;
             
             if (loading) {
                 this.form.addClass('loading');
                 this.form.find('.hbl-submit-button, .hbl-reset-button').prop('disabled', true);
                 this.showLoadingIndicator();
+                
+                // Add loading spinners to buttons
+                this.form.find('.hbl-submit-button').addClass('hbl-button-loading');
+                this.form.find('.hbl-reset-button').addClass('hbl-button-loading');
+                
+                console.log('HSF: Loading state activated');
             } else {
                 this.form.removeClass('loading');
                 this.form.find('.hbl-submit-button, .hbl-reset-button').prop('disabled', false);
                 this.hideLoadingIndicator();
                 
-                // Ensure all loading spinners are removed
+                // Remove all loading spinners
                 this.form.find('.hbl-loading-spinner').remove();
                 this.form.find('.hbl-button-loading').removeClass('hbl-button-loading');
+                
+                // Ensure buttons are properly reset
+                this.form.find('.hbl-submit-button, .hbl-reset-button').removeClass('hbl-button-loading');
+                
+                console.log('HSF: Loading state cleared');
             }
         }
 
@@ -2334,15 +2402,49 @@
                 const loadingHtml = `
                     <div class="hbl-loading-indicator">
                         <div class="hbl-loading-spinner"></div>
-                        <p>${config.strings.loading}</p>
+                        <p>${ajaxConfig.strings.loading || 'Loading...'}</p>
                     </div>
                 `;
                 this.resultsContainer.html(loadingHtml);
+                console.log('HSF: Loading indicator shown');
             }
         }
 
         hideLoadingIndicator() {
             this.resultsContainer.find('.hbl-loading-indicator').remove();
+            console.log('HSF: Loading indicator hidden');
+        }
+
+        // Enhanced loading state management for specific operations
+        setButtonLoading(buttonSelector, loading) {
+            const $button = this.form.find(buttonSelector);
+            if (loading) {
+                $button.prop('disabled', true).addClass('hbl-button-loading');
+            } else {
+                $button.prop('disabled', false).removeClass('hbl-button-loading');
+            }
+        }
+
+        // Clear all loading states (emergency reset)
+        clearAllLoadingStates() {
+            console.log('HSF: Clearing all loading states (emergency reset)');
+            
+            this.isLoading = false;
+            this.form.removeClass('loading');
+            this.form.find('button').prop('disabled', false);
+            this.form.find('.hbl-loading-spinner').remove();
+            this.form.find('.hbl-button-loading').removeClass('hbl-button-loading');
+            this.hideLoadingIndicator();
+            
+            // Remove any stuck CSS states
+            this.form.find('.hbl-submit-button, .hbl-reset-button').each(function() {
+                $(this).removeClass('loading hbl-button-loading');
+                $(this).prop('disabled', false);
+                // Remove any inline styles that might be stuck
+                $(this).removeAttr('style');
+            });
+            
+            console.log('HSF: All loading states cleared');
         }
 
         updateURL() {

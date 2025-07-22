@@ -120,7 +120,7 @@ $data_attrs .= ' data-infinite-scroll="' . (isset($attributes['enableInfiniteScr
                 <div class="hbl-filter-field hbl-filter-location">
                     <label for="hsf-filter-location"><?php _e('LOCATION', 'happy-search-and-filter'); ?></label>
                     <div class="hbl-multi-select-container">
-                        <select name="location[]" id="hsf-filter-location" multiple class="hbl-multi-select">
+                        <select name="location[]" id="hsf-filter-location" multiple class="hbl-multi-select" size="4">
                             <?php foreach ($locations as $location) : ?>
                                 <option value="<?php echo esc_attr($location); ?>" <?php selected(in_array($location, (array)$current_location), true); ?>>
                                     <?php echo esc_html($location); ?>
@@ -136,7 +136,7 @@ $data_attrs .= ' data-infinite-scroll="' . (isset($attributes['enableInfiniteScr
                 <div class="hbl-filter-field hbl-filter-company-type">
                     <label for="hsf-filter-company-type"><?php _e('COMPANY TYPE', 'happy-search-and-filter'); ?></label>
                     <div class="hbl-multi-select-container">
-                        <select name="company_type[]" id="hsf-filter-company-type" multiple class="hbl-multi-select">
+                        <select name="company_type[]" id="hsf-filter-company-type" multiple class="hbl-multi-select" size="4">
                             <?php foreach ($company_types as $type) : ?>
                                 <option value="<?php echo esc_attr($type); ?>" <?php selected(in_array($type, (array)$current_company_type), true); ?>>
                                     <?php echo esc_html($type); ?>
@@ -152,7 +152,7 @@ $data_attrs .= ' data-infinite-scroll="' . (isset($attributes['enableInfiniteScr
                 <div class="hbl-filter-field hbl-filter-category">
                     <label for="hsf-filter-category"><?php _e('CATEGORY', 'happy-search-and-filter'); ?></label>
                     <div class="hbl-multi-select-container">
-                        <select name="category[]" id="hsf-filter-category" multiple class="hbl-multi-select">
+                        <select name="category[]" id="hsf-filter-category" multiple class="hbl-multi-select" size="4">
                             <?php foreach ($categories as $category) : ?>
                                 <option value="<?php echo esc_attr($category->slug); ?>" <?php selected(in_array($category->slug, (array)$current_category), true); ?>>
                                     <?php echo esc_html($category->name); ?>
